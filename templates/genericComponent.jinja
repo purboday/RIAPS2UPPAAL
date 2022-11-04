@@ -1,0 +1,77 @@
+process {{compInfo.template}}(int &socket) {
+
+// Place local declarations here.
+int status;
+{% for item in compInfo.local_variables %}
+{% if item.value %}
+{{item.type}} {{item.name}} = {{item.value}};
+{% else %}
+{{item.type}} {{item.name}};
+{% endif %}
+{% endfor %}
+state
+{% for state in compInfo.locations %}
+	{% if loop.last %}
+	{{state.id}};
+	{% else %}
+	{{state.id}},
+	{% endif %}
+{% endfor %}
+commit
+{% for state in compInfo.locations %}
+	{% if state.commit %}
+	{% if loop.last %}
+	{{state.id}};
+	{% else %}
+	{{state.id}},
+	{% endif %}
+	{% endif %}
+{% endfor %}
+init
+{% for state in compInfo.locations %}
+	{% if state.init %}
+	{{state.id}};
+	{% endif %}
+{% endfor %}
+trans
+{% for tran in compInfo.edges %}
+	{% if loop.last %}
+	{% if tran.guard and tran.sync and tran.assign %}
+	{{tran.source}} -> {{tran.target}} { guard {{tran.guard}} , sync {{tran.sync}}, assign {{tran.assign}}; };
+	{% elif tran.guard and tran.sync %}
+	{{tran.source}} -> {{tran.target}} { guard {{tran.guard}} , sync {{tran.sync}}; };
+	{% elif tran.guard and tran.assign %}
+	{{tran.source}} -> {{tran.target}} { guard {{tran.guard}} , assign {{tran.assign}}; };
+	{% elif tran.sync and tran.assign %}
+	{{tran.source}} -> {{tran.target}} { sync {{tran.sync}}, assign {{tran.assign}}; };
+	{% elif tran.guard%}
+	{{tran.source}} -> {{tran.target}} { guard {{tran.guard}}; };
+	{% elif tran.sync%}
+	{{tran.source}} -> {{tran.target}} { sync {{tran.sync}}; };
+	{% elif tran.assign%}
+	{{tran.source}} -> {{tran.target}} { assign {{tran.assign}}; };
+	{% else %}
+	{{tran.source}} -> {{tran.target}};
+	{% endif %}
+	{% else %}
+	{% if tran.guard and tran.sync and tran.assign %}
+	{{tran.source}} -> {{tran.target}} { guard {{tran.guard}} , sync {{tran.sync}}, assign {{tran.assign}}; },
+	{% elif tran.guard and tran.sync %}
+	{{tran.source}} -> {{tran.target}} { guard {{tran.guard}} , sync {{tran.sync}}; },
+	{% elif tran.guard and tran.assign %}
+	{{tran.source}} -> {{tran.target}} { guard {{tran.guard}} , assign {{tran.assign}}; },
+	{% elif tran.sync and tran.assign %}
+	{{tran.source}} -> {{tran.target}} { sync {{tran.sync}}, assign {{tran.assign}}; },
+	{% elif tran.guard%}
+	{{tran.source}} -> {{tran.target}} { guard {{tran.guard}}; },
+	{% elif tran.sync%}
+	{{tran.source}} -> {{tran.target}} { sync {{tran.sync}}; },
+	{% elif tran.assign%}
+	{{tran.source}} -> {{tran.target}} { assign {{tran.assign}}; },
+	{% else %}
+	{{tran.source}} -> {{tran.target}},
+	{% endif %}
+	{% endif %}
+{% endfor %}
+	
+}

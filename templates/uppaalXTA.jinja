@@ -1,0 +1,92 @@
+// Place global declarations here.
+
+int max_size = {{max_size}};
+
+typedef struct { int curr_size; int front; int rear; int items[{{max_size}}]; int id;} intq;
+typedef struct { int length; int items[{{port_count}}];} socketlist;
+
+bool isFull(intq &port)
+{
+    if((port.front == port.rear + 1)||(port.front == 0 && port.rear == max_size - 1))
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+bool isEmpty(intq &port)
+{
+    if (port.front == -1)
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+int push(intq &port)
+{
+    if (isFull(port))
+    {
+        return -1;
+    }
+    else
+    {
+        if (port.front == -1) port.front = 0;
+        port.rear = (port.rear + 1) % max_size;
+        port.items[port.rear] = 1;
+        port.curr_size ++;
+        return 0;
+    }
+}
+
+int pop(intq &port)
+{
+    int element;
+    if (isEmpty(port))
+    {
+        return -1;
+    }
+    else
+    {
+        element = port.items[port.front];
+        port.curr_size --;
+       if (port.front == port.rear)
+        {
+            port.front = -1;
+            port.rear = -1;
+        }
+       else
+        {
+            port.front = (port.front + 1) % max_size;
+        }
+        return element;
+    }
+}
+{% set id=1 %}
+{% for comp, ports in compPortMap.items() %}
+{% for port in ports %}
+intq {{port.name}} = {0,-1,-1,{ {% for i in range(max_size - 1) %}0,{% endfor %}0},{{id}}
+{% set id = id + 1 %}
+{% if port.type == 'req' or port.type == 'rep' or port.type == 'qry' or port.type == 'ans' %}
+int {{port.msg_type}}_value;
+chan {{port.msg_type}}_channel;
+sockettlist {{port.name}}_sockets ={0,{% for i in range(porrrt_count - 1) %}-1,{% endfor %}-1}};
+int {{port.name}}_socket;
+{% endif %}
+{% if port.type == 'timer' %}
+chan {{comp}}_{{port.name}}_terminate;
+chan {{comp}}_{{port.name}}_activate;
+chan {{comp}}_{{port.name}}_start;
+chan {{comp}}_{{port.name}}_cancel;
+chan {{comp}}_{{port.name}}_deactivate;
+{% endfor %}
+{% endfor %}
+urgent chan go;
+urgent chan executehandler;
+urgent chan handlerexit;

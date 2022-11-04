@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE nta PUBLIC '-//Uppaal Team//DTD Flat System 1.1//EN' 'http://www.it.uu.se/research/group/darts/uppaal/flat-1_2.dtd'>
+<nta>
+	<declaration>// Place global declarations here.
+
+int RelayStatus;</declaration>
+	<template>
+		<name x="5" y="5">RelayManager</name>
+		<parameter>int interval, chan &amp;RelayStatusMsg</parameter>
+		<declaration>// Place local declarations here.
+clock iclk;
+clock countdown;
+int valueHistory, countdownStart, countdownStop;
+int value, timestamp;</declaration>
+		<location id="id0" x="0" y="0">
+			<name x="17" y="-8">Ready</name>
+		</location>
+		<location id="id1" x="212" y="0">
+			<name x="212" y="-34">on_RecvRelayStatus</name>
+		</location>
+		<location id="id2" x="408" y="0">
+			<name x="389" y="-34">setupTImer</name>
+		</location>
+		<location id="id3" x="-170" y="0">
+			<name x="-238" y="-42">on_countdown</name>
+		</location>
+		<init ref="id0"/>
+		<transition>
+			<source ref="id1"/>
+			<target ref="id2"/>
+		</transition>
+		<transition>
+			<source ref="id3"/>
+			<target ref="id0"/>
+			<nail x="-136" y="59"/>
+			<nail x="-34" y="59"/>
+		</transition>
+		<transition>
+			<source ref="id0"/>
+			<target ref="id3"/>
+			<label kind="guard" x="-144" y="-25">countdown &gt; interval</label>
+		</transition>
+		<transition>
+			<source ref="id2"/>
+			<target ref="id0"/>
+			<label kind="assignment" x="153" y="144">countdown=0</label>
+			<nail x="408" y="136"/>
+			<nail x="0" y="136"/>
+		</transition>
+		<transition>
+			<source ref="id0"/>
+			<target ref="id1"/>
+			<label kind="synchronisation" x="52" y="-85">RelayStatusMsg?</label>
+			<label kind="assignment" x="52" y="-68">value=RelayStatus</label>
+			<nail x="34" y="-68"/>
+			<nail x="187" y="-68"/>
+		</transition>
+	</template>
+	<template>
+		<name>RelayDevice</name>
+		<parameter>int base, int dev, chan &amp;RelayStatusMsg</parameter>
+		<declaration>clock iclk;
+clock delay;
+int RelayStatus;
+int period = 5;
+int curStatus;
+int msg;</declaration>
+		<location id="id4" x="-289" y="0">
+			<name x="-348" y="-34">Ready</name>
+		</location>
+		<location id="id5" x="-25" y="8">
+			<name x="-8" y="-25">on_delay</name>
+		</location>
+		<init ref="id4"/>
+		<transition>
+			<source ref="id5"/>
+			<target ref="id4"/>
+			<label kind="synchronisation" x="-263" y="51">RelayStatusMsg!</label>
+			<label kind="assignment" x="-280" y="76">msg = RelayStatus, period = base + dev</label>
+			<nail x="-25" y="76"/>
+			<nail x="-289" y="68"/>
+		</transition>
+		<transition>
+			<source ref="id4"/>
+			<target ref="id5"/>
+			<label kind="guard" x="-271" y="-80">delay == period</label>
+			<label kind="assignment" x="-271" y="-46">delay=0</label>
+			<nail x="-289" y="-51"/>
+			<nail x="-25" y="-42"/>
+		</transition>
+	</template>
+	<system>// Place template instantiations here.
+Process = Template();
+// List one or more processes to be composed into a system.
+system Process;
+    </system>
+	<queries>
+		<query>
+			<formula></formula>
+			<comment></comment>
+		</query>
+	</queries>
+</nta>
