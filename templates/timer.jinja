@@ -1,12 +1,13 @@
-{% macro timer(port) -%}
+process {{comp_name}}_{{port_name}}_thread(chan &activate, chan &deactivate, chan &start, chan &cancel, chan &terminate, intq &port_name) {
+
 clock counter;
 int period = {{port.period}};
-{% if {{port.period}} == 0}
+{% if port.period == 0 %}
 bool periodic = false;
 bool _running = false;
 bool active = false;
 int timeout = 0;
-{ % else %}
+{% else %}
 bool periodic = true;
 bool _running = true;
 bool active = true;
@@ -92,4 +93,3 @@ trans
     loc_78 -> loc_78 { sync activate?; assign active = true; },
     loc_78 -> loc_80 { sync terminate?; };
 }
-{%- endmacro %}

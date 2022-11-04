@@ -194,18 +194,24 @@ class riaps2uppaal():
                         #self.ports.append({portName: insert})
                         self.modelData[compObj['name']]['ports'][portName]=insert
                         
-    def add_xta(self):
-        template = self.env.get_template("genericComponent.jinja")
-        print(template.render(compInfo=obj.cfg.code_metadata))
+    def add_xta(self, template, args):
+        template = self.env.get_template(template)
+        print(template.render(args))
             
     def merge_xta(self):
-        pass
+        #self.add_xta("genericComponent.jinja", {'compInfo' : self.cfg.code_metadata})
+        for compName, ports in self.modelData.items():
+            if compName == self.cfg.code_metadata["template"]:
+                self.add_xta("genericComponent.jinja", {'compInfo' : self.cfg.code_metadata})
+            for portName, portAttr in ports["ports"].items():
+                if portAttr["type"] == "tim":
+                    self.add_xta("timer.jinja", {"comp_name": compName, "port_name" : portName, "port" : portAttr})
         
 obj = riaps2uppaal('rrr')
 obj.parse_model()
 obj.generate_cfg()
 # print(obj.cfg.code_metadata)
-obj.add_xta()
+obj.merge_xta()
 # g = obj.print_cfg()
 #print(g)
 # obj.generate_xml()
