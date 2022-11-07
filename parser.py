@@ -78,10 +78,14 @@ class riaps2uppaal():
         self.modelData = {}
         self.env = Environment(
             loader = FileSystemLoader("templates"))
+        self.sched = {}
         
     def generate_cfg(self):
         self.cfg.gen_cfg(s, self.modelData)
         self.g = to_graph(CFGNode.cache, [])
+        compName = self.cfg.code_metadata['template']
+        self.sched[compName]=BatchSchedulerModel(compName, self.modelData[compName])
+        self.sched[compName].gen_cfg()
         
     def print_cfg(self):
         if self.g is not None:
@@ -199,13 +203,15 @@ class riaps2uppaal():
         print(template.render(args))
             
     def merge_xta(self):
-        #self.add_xta("genericComponent.jinja", {'compInfo' : self.cfg.code_metadata})
-        for compName, ports in self.modelData.items():
-            if compName == self.cfg.code_metadata["template"]:
-                self.add_xta("genericComponent.jinja", {'compInfo' : self.cfg.code_metadata})
-            for portName, portAttr in ports["ports"].items():
-                if portAttr["type"] == "tim":
-                    self.add_xta("timer.jinja", {"comp_name": compName, "port_name" : portName, "port" : portAttr})
+        self.add_xta("templateInst.jinja", {'compInfo' : self.modelData})
+        #self.add_xta("globalDecl.jinja", {'compInfo' : self.modelData, 'maxSize': 10})
+        # for compName, ports in self.modelData.items():
+        #     if compName == self.cfg.code_metadata["template"]:
+        #         self.add_xta("genericComponent.jinja", {'compInfo' : self.cfg.code_metadata})
+        #         self.add_xta("batchScheduler.jinja", {'compInfo' : self.sched[compName].scheduler_metadata})
+        #     for portName, portAttr in ports["ports"].items():
+        #         if portAttr["type"] == "tim":
+        #             self.add_xta("timer.jinja", {"comp_name": compName, "port_name" : portName, "port" : portAttr})
         
 obj = riaps2uppaal('rrr')
 obj.parse_model()

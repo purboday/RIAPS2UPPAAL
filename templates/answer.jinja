@@ -1,0 +1,9 @@
+process Answer_comp_thread(chan &msg_type, intq &port_name) {
+
+state
+    waiting;
+init
+    waiting;
+trans
+    waiting -> waiting { sync msg_type?; assign push(port_name), port_name.id = identity; };
+}

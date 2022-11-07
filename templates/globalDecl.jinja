@@ -1,6 +1,6 @@
 // Place global declarations here.
 
-int max_size = {{max_size}};
+int max_size = {{maxSize}};
 
 typedef struct { int curr_size; int front; int rear; int items[{{max_size}}]; int id;} intq;
 typedef struct { int length; int items[{{port_count}}];} socketlist;
@@ -68,25 +68,28 @@ int pop(intq &port)
         return element;
     }
 }
-{% set id=1 %}
-{% for comp, ports in compPortMap.items() %}
-{% for port in ports %}
-intq {{port.name}} = {0,-1,-1,{ {% for i in range(max_size - 1) %}0,{% endfor %}0},{{id}}
-{% set id = id + 1 %}
-{% if port.type == 'req' or port.type == 'rep' or port.type == 'qry' or port.type == 'ans' %}
-int {{port.msg_type}}_value;
-chan {{port.msg_type}}_channel;
-sockettlist {{port.name}}_sockets ={0,{% for i in range(porrrt_count - 1) %}-1,{% endfor %}-1}};
-int {{port.name}}_socket;
+{% set ns=namespace(id=1) %}
+{% for compName, portData in compInfo.items() %}
+{% for portName, portAttr in portData.ports.items() %}
+{% set ns.portNum = loop.length %}
+intq {{portName}} = {0,-1,-1,{ {% for i in range(maxSize - 1) %}0,{% endfor %}0},{{ns.id}}}
+{% set ns.id = ns.id + 1 %}
+{% if portAttr.type == 'req' or portAttr.type == 'rep' or portAttr.type == 'qry' or portAttr.type == 'ans' %}
+int {{portAttr.msg_type}}_value;
+chan {{portAttr.msg_type}}_channel;
 {% endif %}
-{% if port.type == 'timer' %}
-chan {{comp}}_{{port.name}}_terminate;
-chan {{comp}}_{{port.name}}_activate;
-chan {{comp}}_{{port.name}}_start;
-chan {{comp}}_{{port.name}}_cancel;
-chan {{comp}}_{{port.name}}_deactivate;
+{% if portAttr.type == 'timer' %}
+chan {{compName}}_{{portName}}_terminate;
+chan {{compName}}_{{portName}}_activate;
+chan {{compName}}_{{portName}}_start;
+chan {{compName}}_{{portName}}_cancel;
+chan {{compName}}_{{portName}}_deactivate;
+{% endif %}
 {% endfor %}
+socketlist {{compName}}_sockets ={0,{% for i in range(ns.portNum - 1) %}-1,{% endfor %}-1}};
+int {{compName}}_socket;
 {% endfor %}
 urgent chan go;
 urgent chan executehandler;
 urgent chan handlerexit;
+int identity;

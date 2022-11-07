@@ -2,6 +2,7 @@
 # Author: Rahul Gopinath <rahul.gopinath@cispa.saarland>
 # Modified by: Purboday Ghosh ,purboday.ghosh@vanderbilt.edu>
 # License: https://github.com/uds-se/fuzzingbook/blob/master/LICENSE.md
+from pyroute2.ethtool.common import PORT_DA
 """
 PyCFG for Python MCI
 Use http://viz-js.com/ to view digraph output
@@ -473,6 +474,9 @@ class PyCFG:
                 edge['sync'] = "%s!" %(args['attr']['msgtype'][0])
             else:
                 edge['sync'] = "%s!" %(args['attr']['msgtype'][-1])
+                
+            if args['attr']['type'] in ['qry','ans']:
+                edge['assign'] = "identity = %s.id" %(args['port'])
             
         # handler exit transition
         elif 'ready' in edge['target']:
@@ -577,6 +581,19 @@ class PyCFG:
         self.update_functions()
         self.link_functions()
         self.add_riaps_ports()
+        
+class BatchSchedulerModel:
+    def __init__(self, comp_name, port_data):
+        self.scheduler_metadata = {}
+        #self.scheduler_metadata['local_variables']=[]
+        self.scheduler_metadata['template'] = comp_name
+        self.scheduler_metadata['guard'] = ''
+        self.scheduler_metadata['assign']=''
+        self.port_data = port_data
+        
+    def gen_cfg(self):
+        self.scheduler_metadata['guard'] = '||'.join('%s.curr_size > 0' %(port_name) for port_name in self.port_data['ports'])
+        self.scheduler_metadata['assign'] = ','.join('poll(%s)' %(port_name) for port_name in self.port_data['ports'])
 
 def compute_dominator(cfg, start = 0, key='parents'):
     dominator = {}

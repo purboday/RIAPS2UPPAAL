@@ -1,20 +1,11 @@
-process {{comp_name}}_{{port_name}}_thread(chan &activate, chan &deactivate, chan &start, chan &cancel, chan &terminate, intq &port_name) {
-
+process timer_port(chan &activate, chan &deactivate, chan &start, chan &cancel, chan &terminate, intq &port_name, int period, bool periodic, bool _running, bool active, int timeout) {
 clock counter;
-int period = {{port.period}};
-{% if port.period == 0 %}
-bool periodic = false;
-bool _running = false;
-bool active = false;
-int timeout = 0;
-{% else %}
-bool periodic = true;
-bool _running = true;
-bool active = true;
-int timeout = {{port.period}};
-{% endif %}
+// if period = 0, then periodic =false, else periodic = true
 int delay = 0;
+// if periodic then _running = true, else false
 bool skip = false;
+// if periodic then active = true, otherwise false
+// if periodic then timeout = period, else 0
 
 void handleTimeout()
 {
@@ -79,7 +70,6 @@ void handleCancel()
         _running = false;
     }
 }
-
 state
     loc_78,
     loc_80;
