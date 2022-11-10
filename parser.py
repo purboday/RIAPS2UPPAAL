@@ -70,22 +70,40 @@ class RelayDevice(Component):
 
 """
 
+def split_dirname(path):
+    assert os.path.isdir(path), "could not find the application directory"
+    head, tail = os.path.split(path)
+    if not tail:
+        tail = os.path.basename(head)
+    return (head,tail)
+
 class riaps2uppaal():
-    def __init__(self, filename):
-        self.filename = filename
-        self.cfg = PyCFG()
-        self.g = None
+    def __init__(self, appPath):
+        self.appFolder, self.appName = split_dirname(appPath)
+        self.cfg = {}
+        self.g = []
         self.modelData = {}
         self.env = Environment(
             loader = FileSystemLoader("templates"))
         self.sched = {}
+        self.xtaFile = "%s/%s/%s.xta" %(self.appFolder,self.appName,self.appName)
+        self.xtaContent = {}
         
     def generate_cfg(self):
-        self.cfg.gen_cfg(s, self.modelData)
-        self.g = to_graph(CFGNode.cache, [])
-        compName = self.cfg.code_metadata['template']
-        self.sched[compName]=BatchSchedulerModel(compName, self.modelData[compName])
-        self.sched[compName].gen_cfg()
+        assert self.modelData, "call parse_model() first to get model data"
+        for compName in self.modelData:
+            fileName = "%s/%s/%s.py" %(self.appFolder, self.appName,compName)
+            if os.path.isfile(fileName):
+                with open(fileName,'r') as file:
+                    compCode = file.read()
+                    self.cfg[compName]=PyCFG()
+                    self.cfg[compName].gen_cfg(compCode, self.modelData)
+                    self.g.append(to_graph(CFGNode.cache, []))
+                    # compName = self.cfg[-1].code_metadata['template']
+                    self.sched[compName]=BatchSchedulerModel(compName, self.modelData[compName])
+                    self.sched[compName].gen_cfg()
+            else:
+                print("file %s.py not found" %(compName))
         
     def print_cfg(self):
         if self.g is not None:
@@ -175,8 +193,11 @@ class riaps2uppaal():
     #             print(untokenize([(toknum,tokval)]))
     
     def parse_model(self):
-        thisFolder = '/home/riaps/workspace/RIAPS2UPPAAL'
-        compiledApp = compileModel('/home/riaps/workspace/RelayMonitor/RelayMonitor.riaps')
+        #thisFolder = '/home/riaps/workspace/RIAPS2UPPAAL'
+        try:
+            compiledApp = compileModel('%s/%s/%s.riaps' %(self.appFolder,self.appName,self.appName))
+        except:
+            raise
         self.appName = list(compiledApp.keys())[0]
         with open(self.appName+'.json') as f:
             data = json.load(f)
@@ -198,22 +219,34 @@ class riaps2uppaal():
                         #self.ports.append({portName: insert})
                         self.modelData[compObj['name']]['ports'][portName]=insert
                         
-    def add_xta(self, template, args):
-        template = self.env.get_template(template)
-        print(template.render(args))
+    def add_xta(self, template, args={}):
+        if   template.split('.')[0] not in self.xtaContent:
+            template = self.env.get_template(template)
+            with open(self.xtaFile,'a')  as file:
+                file.write(template.render(args)+"\n")
+            #print(template.render(args))
             
     def merge_xta(self):
-        self.add_xta("templateInst.jinja", {'compInfo' : self.modelData})
-        #self.add_xta("globalDecl.jinja", {'compInfo' : self.modelData, 'maxSize': 10})
-        # for compName, ports in self.modelData.items():
-        #     if compName == self.cfg.code_metadata["template"]:
-        #         self.add_xta("genericComponent.jinja", {'compInfo' : self.cfg.code_metadata})
-        #         self.add_xta("batchScheduler.jinja", {'compInfo' : self.sched[compName].scheduler_metadata})
-        #     for portName, portAttr in ports["ports"].items():
-        #         if portAttr["type"] == "tim":
-        #             self.add_xta("timer.jinja", {"comp_name": compName, "port_name" : portName, "port" : portAttr})
         
-obj = riaps2uppaal('rrr')
+        self.add_xta("globalDecl.jinja", {'compInfo' : self.modelData, 'maxSize': 10})
+        for compName, ports in self.modelData.items():
+            if compName in self.cfg:
+                self.add_xta("genericComponent.jinja", {'compInfo' : self.cfg[compName].code_metadata})
+                self.add_xta("batchScheduler.jinja", {'compInfo' : self.sched[compName].scheduler_metadata})
+            for portName, portAttr in ports["ports"].items():
+                if portAttr["type"] == "tim":
+                    self.add_xta("timer.jinja", {"comp_name": compName, "port_name" : portName, "port" : portAttr})
+                if portAttr["type"] == "sub":
+                    self.add_xta("subscribe.jinja")
+                if portAttr["type"] == "rep":
+                    self.add_xta("reply.jinja")
+                if portAttr["type"] == "qry":
+                    self.add_xta("query.jinja")
+                if portAttr["type"] == "ans":
+                    self.add_xta("answer.jinja")
+        self.add_xta("templateInst.jinja", {'compInfo' : self.modelData})
+        
+obj = riaps2uppaal('/home/riaps/workspace/RelayMonitor')
 obj.parse_model()
 obj.generate_cfg()
 # print(obj.cfg.code_metadata)

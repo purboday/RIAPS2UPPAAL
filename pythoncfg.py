@@ -100,7 +100,7 @@ class PyCFG:
     def walk(self, node, myparents):
         if node is None: return
         fname = "on_%s" % node.__class__.__name__.lower()
-        # print(fname)
+        #print(fname)
         # print(fname)
         if hasattr(self, fname):
             fn = getattr(self, fname)
@@ -236,7 +236,7 @@ class PyCFG:
         # treat no else as a simple pass    
         if len(node.orelse) == 0:
             g2 = self.on_pass(n, g2)
-            return g1 + g2
+        return g1 + g2
 
     def on_binop(self, node, myparents):
         left = self.walk(node.left, myparents)
@@ -421,6 +421,7 @@ class PyCFG:
 
     def update_children(self):
         for nid,node in CFGNode.cache.items():
+            #print(node)
             for p in node.parents:
                 p.add_child(node)
                 
@@ -499,6 +500,7 @@ class PyCFG:
                         
                     elif 'send_pyobj' in calls:
                         port_name = node.ast_node.value.func.value.attr
+                        print(horast.unparse(node.ast_node))
                         self.code_metadata['locations'].append({'id': 'post_send_%s' % node.lineno(), 'commit' : True})
                         sequence[node.lineno()]=(node,'post_send_%s' % node.lineno(),'send',port_name)
                         # called = self.get_defining_function(node)
@@ -509,7 +511,6 @@ class PyCFG:
                         #     self.code_metadata['edges'][idx].setdefault('update',[]).append('intq.%s = 1' % port_name)
                                             
                     elif 'recv_pyobj' in calls:
-                        # print(ast.dump(node.ast_node))
                         port_name = node.ast_node.value.func.value.attr
                         self.code_metadata['locations'].append({'id': 'pre_recv_%s' % node.lineno(), 'commit' : True})
                         self.code_metadata['locations'].append({'id': 'post_recv_%s' % node.lineno(), 'commit' : True})
@@ -572,6 +573,8 @@ class PyCFG:
         >>> i.walk("100")
         5
         """
+        CFGNode.cache = {}
+        CFGNode.registry = 0
         self.port_data = port_data
         node = self.parse(src)
         nodes = self.walk(node, [self.founder])
