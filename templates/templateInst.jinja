@@ -8,21 +8,25 @@
 {% set ns.processes = ns.processes ~ ',' ~ compName ~ 'Component' %}
 {% endif %}
 {% for portName, portAttr in portData.ports.items() %}
-{% set ns.processes = ns.processes ~ ',' ~ portName %}
 {% if portAttr.type == 'sub' %}
-{{portName}} = subscribe_port({{portAttr.msgtype[0]}}, {{portName}});
+{{compName}}_{{portName}} = subscribe_port({{portAttr.msgtype[0]}}_channel, {{portName}});
+{% set ns.processes = ns.processes ~ ',' ~ compName ~ '_' ~ portName %}
 {% elif portAttr.type == 'rep' %}
-{{portName}} = reply_port({{portAttr.msgtype[0]}}, {{portName}});
+{{compName}}_{{portName}} = reply_port({{portAttr.msgtype[0]}}_channel, {{portName}});
+{% set ns.processes = ns.processes ~ ',' ~ compName ~ '_' ~ portName %}
 {% elif portAttr.type == 'qry' %}
-{{portName}} = query_port({{portAttr.msgtype[1]}}, {{portName}});
+{{compName}}_{{portName}} = query_port({{portAttr.msgtype[1]}}_channel, {{portName}});
+{% set ns.processes = ns.processes ~ ',' ~ compName ~ '_' ~ portName %}
 {% elif portAttr.type == 'ans' %}
-{{portName}} = query_port({{portAttr.msgtype[0]}}, {{portName}});
+{{compName}}_{{portName}} = answer_port({{portAttr.msgtype[0]}}_channel, {{portName}});
+{% set ns.processes = ns.processes ~ ',' ~ compName ~ '_' ~ portName %}
 {% elif portAttr.type == 'tim' %}
-{{portName}} = timer_port({{compName}}_{{portName}}_activate, {{compName}}_{{portName}}_deactivate, {{compName}}_{{portName}}_start, {{compName}}_{{portName}}_cancel, {{compName}}_{{portName}}_terminate, {{portName}}, {{portAttr.period}}, {% if portAttr.periodic %}true, true, true {% else %}false, false, false {% endif %},{{portAttr.period}});
+{{compName}}_{{portName}} = timer_port({{compName}}_{{portName}}_activate, {{compName}}_{{portName}}_deactivate, {{compName}}_{{portName}}_start, {{compName}}_{{portName}}_cancel, {{compName}}_{{portName}}_terminate, {{compName}}_{{portName}}_setDelay, {{portName}}, {{compName}}_{{portName}}_delay, {{portAttr.period}}, {% if portAttr.timertype == 'periodic' %}true, true, true {% else %}false, false, false {% endif %},{{portAttr.period}});
+{% set ns.processes = ns.processes ~ ',' ~ compName ~ '_' ~ portName %}
 {% endif %}
 {% endfor %}
 {{compName}}Scheduler = batchscheduler_{{compName}}({{compName}}_sockets, {{compName}}_socket);
-{% set ns.processes = ns.processes ~ ',' ~ 'batchscheduler_' ~ compName %}
+{% set ns.processes = ns.processes ~ ',' ~ compName ~ 'Scheduler' %}
 {% endfor %}
 TransitionHelper = urgent_edge();
 // List one or more processes to be composed into a system.

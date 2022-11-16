@@ -14,6 +14,7 @@ import re
 import astunparse
 import pygraphviz
 import typed_ast.ast3 as tast
+import random
 
 class CFGNode(dict):
     registry = 0
@@ -89,6 +90,7 @@ class PyCFG:
         #self.code_metadata['global_variables']=[]
         self.code_metadata['local_variables']=[]
         self.code_metadata['locations'] = []
+        self.code_metadata['committed'] = []
         self.code_metadata['edges']=[]
         self.auto_edges = []
         self.user_edges = []
@@ -334,6 +336,7 @@ class PyCFG:
             pt = []
             # add method and handler locations
             self.code_metadata['locations'].append({'id':'%s_%s' % (node.name, node.lineno)})
+            self.code_metadata['committed'].append('%s_%s' % (node.name, node.lineno))
             if node.name.startswith('on_'):
                 self.code_metadata['locations'][-1]['commit'] = True
                 port_nm = node.name[3:]
@@ -345,7 +348,7 @@ class PyCFG:
                         src = item['id']
                         break
                 # add edges for handlers from the initial location
-                self.code_metadata['edges'].append({'source': src, 'target':'%s_%s' % (node.lineno,node.name), 
+                self.code_metadata['edges'].append({'source': src, 'target':'%s_%s' % (node.name, node.lineno), 
                                                     'sync' : 'executehandler?',
                                                     'guard' : 'socket == %s.id' % (port_nm)})
                 # self.code_metadata['edges'].append({'source': '%s_%s' % (node.lineno,node.name), 'target': src })
@@ -472,9 +475,9 @@ class PyCFG:
         
         elif 'post_send' in edge['target']:
             if args['attr']['type'] in ['pub','req','qry','clt']:
-                edge['sync'] = "%s!" %(args['attr']['msgtype'][0])
+                edge['sync'] = "%s_channel!" %(args['attr']['msgtype'][0])
             else:
-                edge['sync'] = "%s!" %(args['attr']['msgtype'][-1])
+                edge['sync'] = "%s_channel!" %(args['attr']['msgtype'][-1])
                 
             if args['attr']['type'] in ['qry','ans']:
                 edge['assign'] = "identity = %s.id" %(args['port'])
@@ -482,6 +485,25 @@ class PyCFG:
         # handler exit transition
         elif 'ready' in edge['target']:
             edge['sync'] = "handlerexit!"
+            
+        elif '_activate' in edge['target']:
+            edge['sync'] = "%s_%s_activate!" %(self.code_metadata['template'],args['port'])
+            
+        elif '_deactivate' in edge['target']:
+            edge['sync'] = "%s_%s_deactivate!" %(self.code_metadata['template'],args['port'])
+            
+        elif '_launch' in edge['target']:
+            edge['sync'] = "%s_%s_start!" %(self.code_metadata['template'],args['port'])
+            
+        elif '_cancel' in edge['target']:
+            edge['sync'] = "%s_%s_cancel!" %(self.code_metadata['template'],args['port'])
+            
+        elif '_terminate' in edge['target']:
+            edge['sync'] = "%s_%s_terminate!" %(self.code_metadata['template'],args['port'])
+            
+        elif 'setDelay' in edge['target']:
+            edge['sync'] = "%s_%s_setDelay!" %(self.code_metadata['template'],args['port'])
+            edge['assign'] = "%s_%s_delay = %d" %(self.code_metadata['template'],args['port'], args['attr']['period'])
             
         else:
             edge['sync'] = "go?"
@@ -500,8 +522,8 @@ class PyCFG:
                         
                     elif 'send_pyobj' in calls:
                         port_name = node.ast_node.value.func.value.attr
-                        print(horast.unparse(node.ast_node))
                         self.code_metadata['locations'].append({'id': 'post_send_%s' % node.lineno(), 'commit' : True})
+                        self.code_metadata['committed'].append('post_send_%s' % node.lineno())
                         sequence[node.lineno()]=(node,'post_send_%s' % node.lineno(),'send',port_name)
                         # called = self.get_defining_function(node)
                         # rcalled = self.get_returning_function(called)
@@ -513,12 +535,14 @@ class PyCFG:
                     elif 'recv_pyobj' in calls:
                         port_name = node.ast_node.value.func.value.attr
                         self.code_metadata['locations'].append({'id': 'pre_recv_%s' % node.lineno(), 'commit' : True})
+                        self.code_metadata['committed'].append('pre_recv_%s' % node.lineno())
                         self.code_metadata['locations'].append({'id': 'post_recv_%s' % node.lineno(), 'commit' : True})
+                        self.code_metadata['committed'].append('post_recv_%s' % node.lineno())
                         self.code_metadata['locations'].append({'id': 'blocking_%s' % node.lineno()})
                         sequence[node.lineno()-0.1]=(node,'pre_recv_%s' % node.lineno(),'recv',port_name)
                         # sequence[node.lineno()]=(node,'blocking_%s' % node.lineno(),'recv',port_name)
-                        self.add_ta_edges('pre_recv', 'blocking', None)
-                        self.add_ta_edges('blocking', 'pre_recv', {'port' : port_name})
+                        self.add_ta_edges('pre_recv_%s' %(node.lineno()), 'blocking_%s' %(node.lineno()), None)
+                        self.add_ta_edges('blocking_%s' % (node.lineno()), 'pre_recv_%s' % (node.lineno()), {'port' : port_name})
                         sequence[node.lineno()+0.1]=(node,'post_recv_%s' % node.lineno(),'recv',port_name)
                         # called = self.get_defining_function(node)
                         # rcalled = self.get_returning_function(called)
@@ -528,6 +552,47 @@ class PyCFG:
                         # if idx >= 0:
                         #     self.code_metadata['edges'][idx].setdefault('update',[]).append('intq.%s = 0' % port_name)
                             # self.code_metadata['edges'][idx].setdefault('guard',[]).append('intq.%s == 1' % port_name)
+                    elif 'activate' == calls:
+                        port_name = node.ast_node.value.func.value.attr
+                        self.code_metadata['locations'].append({'id': '%s_%s_%s' % (port_name,calls,node.lineno()), 'commit' : True})
+                        self.code_metadata['committed'].append('%s_%s_%s' % (port_name,calls,node.lineno()))
+                        sequence[node.lineno()]=(node,'%s_%s_%s' % (port_name,calls,node.lineno()),'tim',port_name)
+                        
+                    elif 'deactivate' == calls:
+                        port_name = node.ast_node.value.func.value.attr
+                        self.code_metadata['locations'].append({'id': '%s_%s_%s' % (port_name,calls,node.lineno()), 'commit' : True})
+                        self.code_metadata['committed'].append('%s_%s_%s' % (port_name,calls,node.lineno()))
+                        sequence[node.lineno()]=(node,'%s_%s_%s' % (port_name,calls,node.lineno()),'tim',port_name)
+                        
+                    elif 'launch' == calls:
+                        port_name = node.ast_node.value.func.value.attr
+                        self.code_metadata['locations'].append({'id': '%s_%s_%s' % (port_name,calls,node.lineno()), 'commit' : True})
+                        self.code_metadata['committed'].append('%s_%s_%s' % (port_name,calls,node.lineno()))
+                        sequence[node.lineno()]=(node,'%s_%s_%s' % (port_name,calls,node.lineno()),'tim',port_name)
+                        
+                    elif 'cancel' == calls:
+                        port_name = node.ast_node.value.func.value.attr
+                        self.code_metadata['locations'].append({'id': '%s_%s_%s' % (port_name,calls,node.lineno()), 'commit' : True})
+                        self.code_metadata['committed'].append('%s_%s_%s' % (port_name,calls,node.lineno()))
+                        sequence[node.lineno()]=(node,'%s_%s_%s' % (port_name,calls,node.lineno()),'tim',port_name)
+                        
+                    elif 'terminate' == calls:
+                        port_name = node.ast_node.value.func.value.attr
+                        self.code_metadata['locations'].append({'id': '%s_%s_%s' % (port_name,calls,node.lineno()), 'commit' : True})
+                        self.code_metadata['committed'].append('%s_%s_%s' % (port_name,calls,node.lineno()))
+                        sequence[node.lineno()]=(node,'%s_%s_%s' % (port_name,calls,node.lineno()),'tim',port_name)
+                        
+                        
+                    elif 'setDelay' == calls:
+                        port_name = node.ast_node.value.func.value.attr
+                        self.code_metadata['locations'].append({'id': '%s_%s_%s' % (port_name,calls,node.lineno()), 'commit' : True})
+                        self.code_metadata['committed'].append('%s_%s_%s' % (port_name,calls,node.lineno()))
+                        sequence[node.lineno()]=(node,'%s_%s_%s' % (port_name,calls,node.lineno()),'tim',port_name)
+                        
+                        if node.ast_node.value.args[0].__class__.__name__.lower() == 'num':
+                            self.port_data[self.code_metadata['template']]['ports'][port_name]['period'] = node.ast_node.value.args[0].n
+                        else:
+                            self.port_data[self.code_metadata['template']]['ports'][port_name]['period'] = random.randint(1, 10)
         prev = None
         next = 'ready'
         for lineno, tup in sorted(sequence.items()):

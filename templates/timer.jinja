@@ -1,4 +1,4 @@
-process timer_port(chan &activate, chan &deactivate, chan &start, chan &cancel, chan &terminate, intq &port_name, int period, bool periodic, bool _running, bool active, int timeout) {
+process timer_port(chan &activate, chan &deactivate, chan &start, chan &cancel, chan &terminate, chan &setDelay, intq &port_name, int &sporadic_delay, int period, bool periodic, bool _running, bool active, int timeout) {
 clock counter;
 // if period = 0, then periodic =false, else periodic = true
 int delay = 0;
@@ -81,5 +81,6 @@ trans
     loc_78 -> loc_78 { sync start?; assign handleStart(); },
     loc_78 -> loc_78 { sync deactivate?; assign active = false; },
     loc_78 -> loc_78 { sync activate?; assign active = true; },
+    loc_78 -> loc_80 { sync setDelay?; assign period = sporadic_delay; },
     loc_78 -> loc_80 { sync terminate?; };
 }

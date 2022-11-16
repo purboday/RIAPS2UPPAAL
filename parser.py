@@ -87,7 +87,7 @@ class riaps2uppaal():
             loader = FileSystemLoader("templates"))
         self.sched = {}
         self.xtaFile = "%s/%s/%s.xta" %(self.appFolder,self.appName,self.appName)
-        self.xtaContent = {}
+        self.xtaContent = []
         
     def generate_cfg(self):
         assert self.modelData, "call parse_model() first to get model data"
@@ -226,9 +226,12 @@ class riaps2uppaal():
                 file.write(template.render(args)+"\n")
             #print(template.render(args))
             
+    def calc_port_count(self):
+        return max(len(compData['ports']) for compName, compData in self.modelData.items())
+            
     def merge_xta(self):
         
-        self.add_xta("globalDecl.jinja", {'compInfo' : self.modelData, 'maxSize': 10})
+        self.add_xta("globalDecl.jinja", {'compInfo' : self.modelData, 'maxSize': 10, 'portCount' : self.calc_port_count()})
         for compName, ports in self.modelData.items():
             if compName in self.cfg:
                 self.add_xta("genericComponent.jinja", {'compInfo' : self.cfg[compName].code_metadata})
@@ -236,14 +239,20 @@ class riaps2uppaal():
             for portName, portAttr in ports["ports"].items():
                 if portAttr["type"] == "tim":
                     self.add_xta("timer.jinja", {"comp_name": compName, "port_name" : portName, "port" : portAttr})
+                    self.xtaContent.append("timer")
                 if portAttr["type"] == "sub":
                     self.add_xta("subscribe.jinja")
-                if portAttr["type"] == "rep":
+                    self.xtaContent.append("timer")
+                if portAttr["type"] == "subscribe":
                     self.add_xta("reply.jinja")
+                    self.xtaContent.append("reply")
                 if portAttr["type"] == "qry":
                     self.add_xta("query.jinja")
+                    self.xtaContent.append("query")
                 if portAttr["type"] == "ans":
                     self.add_xta("answer.jinja")
+                    self.xtaContent.append("answer")
+        self.add_xta("urgentEdge.jinja")
         self.add_xta("templateInst.jinja", {'compInfo' : self.modelData})
         
 obj = riaps2uppaal('/home/riaps/workspace/RelayMonitor')

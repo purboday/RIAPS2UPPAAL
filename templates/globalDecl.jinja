@@ -2,8 +2,8 @@
 
 int max_size = {{maxSize}};
 
-typedef struct { int curr_size; int front; int rear; int items[{{max_size}}]; int id;} intq;
-typedef struct { int length; int items[{{port_count}}];} socketlist;
+typedef struct { int curr_size; int front; int rear; int items[{{maxSize}}]; int id;} intq;
+typedef struct { int length; int items[{{portCount}}];} socketlist;
 
 bool isFull(intq &port)
 {
@@ -71,22 +71,27 @@ int pop(intq &port)
 {% set ns=namespace(id=1) %}
 {% for compName, portData in compInfo.items() %}
 {% for portName, portAttr in portData.ports.items() %}
-{% set ns.portNum = loop.length %}
-intq {{portName}} = {0,-1,-1,{ {% for i in range(maxSize - 1) %}0,{% endfor %}0},{{ns.id}}}
+intq {{portName}} = {0,-1,-1,{ {% for i in range(maxSize - 1) %}0,{% endfor %}0},{{ns.id}}};
 {% set ns.id = ns.id + 1 %}
-{% if portAttr.type == 'req' or portAttr.type == 'rep' or portAttr.type == 'qry' or portAttr.type == 'ans' %}
-int {{portAttr.msg_type}}_value;
-chan {{portAttr.msg_type}}_channel;
+{% if portAttr.type == 'sub' or portAttr.type == 'qry'%}
+int {{portAttr.msgtype[0]}}_value;
+chan {{portAttr.msgtype[0]}}_channel;
 {% endif %}
-{% if portAttr.type == 'timer' %}
+{% if portAttr.type == 'rep' or portAttr.type == 'ans' %}
+int {{portAttr.msgtype[1]}}_value;
+chan {{portAttr.msgtype[1]}}_channel;
+{% endif %}
+{% if portAttr.type == 'tim' %}
 chan {{compName}}_{{portName}}_terminate;
 chan {{compName}}_{{portName}}_activate;
 chan {{compName}}_{{portName}}_start;
 chan {{compName}}_{{portName}}_cancel;
 chan {{compName}}_{{portName}}_deactivate;
+chan {{compName}}_{{portName}}_setDelay;
+int {{compName}}_{{portName}}_delay;
 {% endif %}
 {% endfor %}
-socketlist {{compName}}_sockets ={0,{% for i in range(ns.portNum - 1) %}-1,{% endfor %}-1}};
+socketlist {{compName}}_sockets ={0,{{'{'}}{% for i in range(portCount - 1) %}-1,{% endfor %}-1{{'}}'}};
 int {{compName}}_socket;
 {% endfor %}
 urgent chan go;
