@@ -71,9 +71,9 @@ int pop(intq &port)
 {% set ns=namespace(id=1) %}
 {% for compName, portData in compInfo.items() %}
 {% for portName, portAttr in portData.ports.items() %}
-intq {{portName}} = {0,-1,-1,{ {% for i in range(maxSize - 1) %}0,{% endfor %}0},{{ns.id}}};
+intq {{compName}}_{{portName}}_q = {0,-1,-1,{ {% for i in range(maxSize - 1) %}0,{% endfor %}0},{{ns.id}}};
 {% set ns.id = ns.id + 1 %}
-{% if portAttr.type == 'sub' or portAttr.type == 'qry'%}
+{% if portAttr.type == 'sub' or portAttr.type == 'qry' or portAttr.type == 'req'%}
 int {{portAttr.msgtype[0]}}_value;
 chan {{portAttr.msgtype[0]}}_channel;
 {% endif %}

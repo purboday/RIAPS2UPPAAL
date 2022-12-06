@@ -207,23 +207,40 @@ class PyCFG:
 
     def on_while(self, node, myparents):
         # For a while, the earliest parent is the node.test
+        # lbl1 node
         _test_node = CFGNode(parents=myparents, ast=horast.parse('_while: %s' % horast.unparse(node.test).strip()).body[0])
         tast.copy_location(_test_node.ast_node, node.test)
         _test_node.exit_nodes = []
+        # p
         test_node = self.walk(node.test, [_test_node])
 
-        # we attach the label node here so that break can find it.
+        # # we attach the label node here so that break can find it.
+        #
+        # # now we evaluate the body, one at a time.
+        # p1 = (test_node, True)
+        # for n in node.body:
+        #     p1 = self.walk(n, p1)
+        #
+        # # the test node is looped back at the end of processing.
+        # _test_node.add_parents(p1)
+        #
+        # # link label node back to the condition.
+        # return _test_node.exit_nodes
+        lbl2_node = CFGNode(parents=test_node, ast=node.test)
+        g_false = CFGNode(parents=[lbl2_node], ast=horast.parse("_if:False"))
+        g_true = CFGNode(parents=[lbl2_node], ast=horast.parse("_if:True"))
+        _test_node.exit_nodes = [g_false]
 
-        # now we evaluate the body, one at a time.
-        p1 = (test_node, True)
+        p = [g_true]
+
         for n in node.body:
-            p1 = self.walk(n, p1)
+            p = self.walk(n, p)
 
-        # the test node is looped back at the end of processing.
-        _test_node.add_parents(p1)
+        # the last node is the parent for the lb1 node.
+        _test_node.add_parents(p)
 
-        # link label node back to the condition.
-        return _test_node.exit_nodes + (test_node, False)
+        return _test_node.exit_nodes
+
 
     def on_if(self, node, myparents):
         _test_node = CFGNode(parents=myparents, ast=horast.parse('_if: %s' % horast.unparse(node.test).strip()).body[0])
@@ -331,14 +348,15 @@ class PyCFG:
             pt = myparents
             # add initial location "ready"
             #self.code_metadata['arguments'] =[a.arg for a in node.args.args if a.arg != 'self']
-            self.code_metadata['locations'].append({'id': 'ready_%s' % node.lineno, 'init' : True })
+            self.code_metadata['locations'].append({'id': 'ready_%d' % node.lineno, 'init' : True })
         else:
             pt = []
             # add method and handler locations
-            self.code_metadata['locations'].append({'id':'%s_%s' % (node.name, node.lineno)})
-            self.code_metadata['committed'].append('%s_%s' % (node.name, node.lineno))
+            #print(node.name+','+str(node.lineno))
+            self.code_metadata['locations'].append({'id':'%s_%d' % (node.name, node.lineno)})
+            self.code_metadata['committed'].append('%s_%d' % (node.name, node.lineno))
+            self.code_metadata['locations'][-1]['commit'] = True
             if node.name.startswith('on_'):
-                self.code_metadata['locations'][-1]['commit'] = True
                 port_nm = node.name[3:]
                 port_info = self.port_data[self.code_metadata['template']]['ports'][port_nm]
                 if port_info['type'] == 'tim':
@@ -350,7 +368,7 @@ class PyCFG:
                 # add edges for handlers from the initial location
                 self.code_metadata['edges'].append({'source': src, 'target':'%s_%s' % (node.name, node.lineno), 
                                                     'sync' : 'executehandler?',
-                                                    'guard' : 'socket == %s.id' % (port_nm)})
+                                                    'guard' : 'socket == %s_%s_q.id' % (self.code_metadata['template'],port_nm)})
                 # self.code_metadata['edges'].append({'source': '%s_%s' % (node.lineno,node.name), 'target': src })
             else:
                 pass
@@ -460,7 +478,7 @@ class PyCFG:
         
         # recv_pyobj() transitions
         if 'blocking' not in edge['source'] and 'pre_recv' in edge['target']:
-            edge['assign'] = "status = pop(%s)" %(args['port'])
+            edge['assign'] = "status = pop(%s_%s_q)" %(self.code_metadata["template"],args['port'])
             
         elif 'pre_recv' in edge['source'] and 'post_recv' in edge['target']:
             edge['guard'] = "status >= 0"
@@ -477,10 +495,10 @@ class PyCFG:
             if args['attr']['type'] in ['pub','req','qry','clt']:
                 edge['sync'] = "%s_channel!" %(args['attr']['msgtype'][0])
             else:
-                edge['sync'] = "%s_channel!" %(args['attr']['msgtype'][-1])
+                edge['sync'] = "%s_channel!" %(args['attr']['msgtype'][1])
                 
             if args['attr']['type'] in ['qry','ans']:
-                edge['assign'] = "identity = %s.id" %(args['port'])
+                edge['assign'] = "identity = %s_%s_q.id" %(self.code_metadata['template'],args['port'])
             
         # handler exit transition
         elif 'ready' in edge['target']:
@@ -595,9 +613,17 @@ class PyCFG:
                             self.port_data[self.code_metadata['template']]['ports'][port_name]['period'] = random.randint(1, 10)
         prev = None
         next = 'ready'
-        for lineno, tup in sorted(sequence.items()):
+        key_list=sorted(sequence.keys())
+        for i,lineno in enumerate(key_list):
+        #for lineno, tup in sorted(sequence.items()):
+            tup = sequence[lineno]
             node, calls, type, port_nm = tup
             called = self.get_defining_function(node)
+            #print('calls'+calls)
+            if i < len(key_list) - 1:
+                next_node = sequence[key_list[i+1]][0]
+            else:
+                next_node = None
             if port_nm is not None:
                 port_info = self.port_data[self.code_metadata['template']]['ports'][port_nm]
                 args = {'port' : port_nm, 'attr' : port_info}
@@ -613,8 +639,12 @@ class PyCFG:
             else:
                 self.add_ta_edges(calls, prev[1],args)
                 prev = tup
-        # print('outside'+calls)
-        # print('next'+next)
+            if next_node is not None:
+                if self.get_defining_function(node) != self.get_defining_function(next_node):
+                    self.add_ta_edges(next,calls)
+        print(self.code_metadata['template'])
+        print('outside'+calls)
+        print('next'+next)
         self.add_ta_edges(next,calls)
                     
                         
@@ -660,8 +690,8 @@ class BatchSchedulerModel:
         self.port_data = port_data
         
     def gen_cfg(self):
-        self.scheduler_metadata['guard'] = '||'.join('%s.curr_size > 0' %(port_name) for port_name in self.port_data['ports'])
-        self.scheduler_metadata['assign'] = ','.join('poll(%s)' %(port_name) for port_name in self.port_data['ports'])
+        self.scheduler_metadata['guard'] = '||'.join('%s_%s_q.curr_size > 0' %(self.scheduler_metadata['template'],port_name) for port_name in self.port_data['ports'])
+        self.scheduler_metadata['assign'] = ','.join('poll(%s_%s_q)' %(self.scheduler_metadata['template'],port_name) for port_name in self.port_data['ports'])
 
 def compute_dominator(cfg, start = 0, key='parents'):
     dominator = {}

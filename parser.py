@@ -78,21 +78,23 @@ def split_dirname(path):
     return (head,tail)
 
 class riaps2uppaal():
-    def __init__(self, appPath):
-        self.appFolder, self.appName = split_dirname(appPath)
+    def __init__(self, appFolder, appName):
+        #self.appFolder, self.appName = split_dirname(appPath)
+        self.appFolder =  appFolder
+        self.appName = appName
         self.cfg = {}
         self.g = []
         self.modelData = {}
         self.env = Environment(
             loader = FileSystemLoader("templates"))
         self.sched = {}
-        self.xtaFile = "%s/%s/%s.xta" %(self.appFolder,self.appName,self.appName)
+        self.xtaFile = "%s/%s.xta" %(self.appFolder,self.appName)
         self.xtaContent = []
         
     def generate_cfg(self):
         assert self.modelData, "call parse_model() first to get model data"
         for compName in self.modelData:
-            fileName = "%s/%s/%s.py" %(self.appFolder, self.appName,compName)
+            fileName = "%s/%s.py" %(self.appFolder,compName)
             if os.path.isfile(fileName):
                 with open(fileName,'r') as file:
                     compCode = file.read()
@@ -103,11 +105,14 @@ class riaps2uppaal():
                     self.sched[compName]=BatchSchedulerModel(compName, self.modelData[compName])
                     self.sched[compName].gen_cfg()
             else:
-                print("file %s.py not found" %(compName))
+                print("file %s.py not found in %s" %(compName, self.appFolder))
         
     def print_cfg(self):
+        graphs = []
         if self.g is not None:
-            return self.g.to_string()
+            for item in self.g:
+                graphs.append(item.to_string())
+        return graphs
             
     def generate_xml(self, start_new = True):
         
@@ -192,10 +197,12 @@ class riaps2uppaal():
     #                 print(m.groups())
     #             print(untokenize([(toknum,tokval)]))
     
-    def parse_model(self):
+    def parse_model(self, modelFile=None):
         #thisFolder = '/home/riaps/workspace/RIAPS2UPPAAL'
+        if not modelFile:
+            modelFile = "%s.riaps" % (self.appName)
         try:
-            compiledApp = compileModel('%s/%s/%s.riaps' %(self.appFolder,self.appName,self.appName))
+            compiledApp = compileModel('%s/%s' %(self.appFolder,modelFile))
         except:
             raise
         self.appName = list(compiledApp.keys())[0]
@@ -209,7 +216,7 @@ class riaps2uppaal():
                         if portType in ['pubs','subs']:
                             insert['msgtype']= [portAttr['type']]
                         if portType in ['reqs','reps','qrys','anss','clts','srvs']:
-                            insert['msgtype'] = [portAttr['reqtype'],portAttr['reptype']]
+                            insert['msgtype'] = [portAttr['req_type'],portAttr['rep_type']]
                         if portType in ['tims']:
                             insert['period'] = portAttr['period']
                             if portAttr['period'] == 0:
@@ -220,7 +227,9 @@ class riaps2uppaal():
                         self.modelData[compObj['name']]['ports'][portName]=insert
                         
     def add_xta(self, template, args={}):
-        if   template.split('.')[0] not in self.xtaContent:
+        if template.split('.')[0] not in self.xtaContent:
+            if template.split('.')[0] not in ["genericComponent","batchScheduler"]:
+                self.xtaContent.append(template.split('.')[0])
             template = self.env.get_template(template)
             with open(self.xtaFile,'a')  as file:
                 file.write(template.render(args)+"\n")
@@ -239,28 +248,31 @@ class riaps2uppaal():
             for portName, portAttr in ports["ports"].items():
                 if portAttr["type"] == "tim":
                     self.add_xta("timer.jinja", {"comp_name": compName, "port_name" : portName, "port" : portAttr})
-                    self.xtaContent.append("timer")
+                    #self.xtaContent.append("timer")
                 if portAttr["type"] == "sub":
                     self.add_xta("subscribe.jinja")
-                    self.xtaContent.append("timer")
-                if portAttr["type"] == "subscribe":
+                    #nd("timer")
+                if portAttr["type"] == "req":
+                    self.add_xta("request.jinja")
+                if portAttr["type"] == "rep":
                     self.add_xta("reply.jinja")
-                    self.xtaContent.append("reply")
+                    #self.xtaContent.append("reply")
                 if portAttr["type"] == "qry":
                     self.add_xta("query.jinja")
-                    self.xtaContent.append("query")
+                    #self.xtaContent.append("query")
                 if portAttr["type"] == "ans":
                     self.add_xta("answer.jinja")
-                    self.xtaContent.append("answer")
+                    #self.xtaContent.append("answer")
         self.add_xta("urgentEdge.jinja")
         self.add_xta("templateInst.jinja", {'compInfo' : self.modelData})
         
-obj = riaps2uppaal('/home/riaps/workspace/RelayMonitor')
-obj.parse_model()
+obj = riaps2uppaal('/home/riaps/riaps_projects/DistributedEstimator/Python/','DistributedEstimator')
+obj.parse_model('sample.riaps')
 obj.generate_cfg()
-# print(obj.cfg.code_metadata)
+#print(obj.cfg.code_metadata)
 obj.merge_xta()
 # g = obj.print_cfg()
-#print(g)
+# for item in g:
+#     print(item)
 # obj.generate_xml()
 # obj.parse_comments()
