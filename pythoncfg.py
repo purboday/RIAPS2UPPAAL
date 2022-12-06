@@ -613,12 +613,15 @@ class PyCFG:
                             self.port_data[self.code_metadata['template']]['ports'][port_name]['period'] = random.randint(1, 10)
         prev = None
         next = 'ready'
+        curr_chain = None
         key_list=sorted(sequence.keys())
         for i,lineno in enumerate(key_list):
         #for lineno, tup in sorted(sequence.items()):
             tup = sequence[lineno]
             node, calls, type, port_nm = tup
             called = self.get_defining_function(node)
+            if called.startswith('on_'):
+                curr_chain = called
             #print('calls'+calls)
             if i < len(key_list) - 1:
                 next_node = sequence[key_list[i+1]][0]
@@ -640,11 +643,17 @@ class PyCFG:
                 self.add_ta_edges(calls, prev[1],args)
                 prev = tup
             if next_node is not None:
-                if self.get_defining_function(node) != self.get_defining_function(next_node):
+                if self.get_defining_function(next_node).startswith('on_') and curr_chain != self.get_defining_function(next_node):
+                    # print('curr chain'+curr_chain)
+                    # print('new chain'+self.get_defining_function(next_node))
+                    # print('calls'+calls)
                     self.add_ta_edges(next,calls)
-        print(self.code_metadata['template'])
-        print('outside'+calls)
-        print('next'+next)
+            # if len(node.children) != 0:
+            #     print(calls)
+            #     print(node.children)
+        # print(self.code_metadata['template'])
+        # print('outside'+calls)
+        # print('next'+next)
         self.add_ta_edges(next,calls)
                     
                         
