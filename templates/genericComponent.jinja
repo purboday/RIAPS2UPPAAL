@@ -2,6 +2,7 @@ process {{compInfo.template}}(int &socket) {
 
 // Place local declarations here.
 int status;
+clock exec_time;
 {% for item in compInfo.local_variables %}
 {% if item.value %}
 {{item.type}} {{item.name}} = {{item.value}};
@@ -12,17 +13,17 @@ int status;
 state
 {% for state in compInfo.locations %}
 	{% if loop.last %}
-	{{state.id}};
+	{{state.id}}  {% if state.inv %} { {{state.inv}} } {% endif %};
 	{% else %}
-	{{state.id}},
+	{{state.id}}  {% if state.inv %} { {{state.inv}} } {% endif %},
 	{% endif %}
 {% endfor %}
 commit
 {% for state in compInfo.committed %}
 	{% if loop.last %}
-	{{state}};
+	{{state}} {% if state.inv %} { {{state.inv}} } {% endif %};
 	{% else %}
-	{{state}},
+	{{state}} {% if state.inv %} { {{state.inv}} } {% endif %},
 	{% endif %}
 {% endfor %}
 init

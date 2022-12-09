@@ -1,0 +1,11 @@
+Spec:
+	annotations*=Annotation
+	;
+	
+Annotation:
+	'ta' ':' prop=Timing
+	;
+	
+Timing:
+	'add' 'time' min=FLOAT max=FLOAT
+	 ;

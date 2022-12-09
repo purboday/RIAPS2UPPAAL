@@ -2,7 +2,6 @@
 # Author: Rahul Gopinath <rahul.gopinath@cispa.saarland>
 # Modified by: Purboday Ghosh ,purboday.ghosh@vanderbilt.edu>
 # License: https://github.com/uds-se/fuzzingbook/blob/master/LICENSE.md
-from pyroute2.ethtool.common import PORT_DA
 """
 PyCFG for Python MCI
 Use http://viz-js.com/ to view digraph output
@@ -15,6 +14,9 @@ import astunparse
 import pygraphviz
 import typed_ast.ast3 as tast
 import random
+
+from textx import metamodel_from_file
+from textx.exceptions import TextXSyntaxError
 
 class CFGNode(dict):
     registry = 0
@@ -92,9 +94,12 @@ class PyCFG:
         self.code_metadata['locations'] = []
         self.code_metadata['committed'] = []
         self.code_metadata['edges']=[]
+        self.code_metadata['specs']=[]
         self.auto_edges = []
         self.user_edges = []
         self.port_data = None
+        self.origin = None
+        self.metamodel = metamodel_from_file("templates/xtaspec.tx")
 
     def parse(self, src):
         return horast.parse(src)
@@ -349,6 +354,7 @@ class PyCFG:
             # add initial location "ready"
             #self.code_metadata['arguments'] =[a.arg for a in node.args.args if a.arg != 'self']
             self.code_metadata['locations'].append({'id': 'ready_%d' % node.lineno, 'init' : True })
+            self.origin = 'ready_%d' %(node.lineno)
         else:
             pt = []
             # add method and handler locations
@@ -368,7 +374,8 @@ class PyCFG:
                 # add edges for handlers from the initial location
                 self.code_metadata['edges'].append({'source': src, 'target':'%s_%s' % (node.name, node.lineno), 
                                                     'sync' : 'executehandler?',
-                                                    'guard' : 'socket == %s_%s_q.id' % (self.code_metadata['template'],port_nm)})
+                                                    'guard' : 'socket == %s_%s_q.id' % (self.code_metadata['template'],port_nm),
+                                                    'assign' : "exec_time = 0"})
                 # self.code_metadata['edges'].append({'source': '%s_%s' % (node.lineno,node.name), 'target': src })
             else:
                 pass
@@ -382,8 +389,21 @@ class PyCFG:
         enter_node.return_nodes = [] # sentinel
 
         p = [enter_node]
+        
+        #print(node.name)
         for n in node.body:
             p = self.walk(n, p)
+            if node.name.startswith('on_'):
+                if n.__class__.__name__.lower() == "comment":
+                    #print(n.comment)
+                    try:
+                        specs = self.metamodel.model_from_str(n.comment)
+                        for ant in specs.annotations:
+                            if ant.prop.__class__.__name__.lower()=="timing":
+                                self.code_metadata["locations"].append({'id':'user_op_%d' % (n.lineno), 'inv' : 'exec_time <= %d' %(ant.prop.min*10), 'min' : ant.prop.min, 'max' : ant.prop.max})
+                                #print('user_op_%d' %(n.lineno))
+                    except TextXSyntaxError:
+                        pass
 
         for n in p:
             if n not in enter_node.return_nodes:
@@ -501,7 +521,7 @@ class PyCFG:
                 edge['assign'] = "identity = %s_%s_q.id" %(self.code_metadata['template'],args['port'])
             
         # handler exit transition
-        elif 'ready' in edge['target']:
+        elif self.origin in edge['target']:
             edge['sync'] = "handlerexit!"
             
         elif '_activate' in edge['target']:
@@ -525,6 +545,9 @@ class PyCFG:
             
         else:
             edge['sync'] = "go?"
+            
+        if 'user_op' in edge['source']:
+            edge['guard'] = "exec_time >= %d" %(args['min']*10)
     
     def add_riaps_ports(self):
         sequence = {}
@@ -612,7 +635,7 @@ class PyCFG:
                         else:
                             self.port_data[self.code_metadata['template']]['ports'][port_name]['period'] = random.randint(1, 10)
         prev = None
-        next = 'ready'
+        next = self.origin
         curr_chain = None
         key_list=sorted(sequence.keys())
         for i,lineno in enumerate(key_list):
@@ -625,16 +648,31 @@ class PyCFG:
             #print('calls'+calls)
             if i < len(key_list) - 1:
                 next_node = sequence[key_list[i+1]][0]
+                #print([loc['id'].split("_")[-1] for loc in self.code_metadata["locations"]])
+                usr_locs = [(i,loc) for i,loc in enumerate(self.code_metadata['locations']) if loc['id'].startswith('user_') and float(loc['id'].split("_")[-1]) < next_node.lineno() and float(loc['id'].split("_")[-1]) > node.lineno()]
             else:
                 next_node = None
+                for loc in self.code_metadata["locations"]: 
+                    if loc["id"].startswith("on_"):
+                        next_loc = loc
+                        break
+                usr_locs = [(i,loc) for i,loc in enumerate(self.code_metadata['locations']) if loc['id'].startswith('user_') and float(loc['id'].split("_")[-1]) < float(next_loc['id'].split("_")[-1]) and float(loc['id'].split("_")[-1]) > node.lineno()]
+                
             if port_nm is not None:
                 port_info = self.port_data[self.code_metadata['template']]['ports'][port_nm]
                 args = {'port' : port_nm, 'attr' : port_info}
             else:
                 args = None
+                
+            if len(usr_locs) > 0:
+                for i,loc in usr_locs:
+                    args = {'min': self.code_metadata['locations'][i]['min'],
+                            'max': self.code_metadata['locations'][i]['max']}
+                    self.add_ta_edges(loc['id'], calls, args)
+                self.add_ta_edges(next, loc['id'], args)
+                continue
             if (prev is None) or (called != self.get_defining_function(prev[0])):
                 called = self.get_defining_function(node)
-                
                 self.add_ta_edges(calls, called, args)
                 # if prev is None:
                 #     next = called
@@ -647,6 +685,7 @@ class PyCFG:
                     # print('curr chain'+curr_chain)
                     # print('new chain'+self.get_defining_function(next_node))
                     # print('calls'+calls)
+                    
                     self.add_ta_edges(next,calls)
             # if len(node.children) != 0:
             #     print(calls)

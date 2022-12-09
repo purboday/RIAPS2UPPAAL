@@ -269,7 +269,8 @@ class riaps2uppaal():
 obj = riaps2uppaal('/home/riaps/riaps_projects/DistributedEstimator/Python/','DistributedEstimator')
 obj.parse_model('sample.riaps')
 obj.generate_cfg()
-#print(obj.cfg.code_metadata)
+# for comp, item in obj.cfg.items():
+#     print(item.code_metadata)
 obj.merge_xta()
 # g = obj.print_cfg()
 # for item in g:
