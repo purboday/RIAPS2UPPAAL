@@ -548,6 +548,9 @@ class PyCFG:
             
         if 'user_op' in edge['source']:
             edge['guard'] = "exec_time >= %d" %(args['min']*10)
+            
+        if 'user_op' in edge['target']:
+            edge['assign'] = "exec_time = 0"
     
     def add_riaps_ports(self):
         sequence = {}
@@ -638,6 +641,7 @@ class PyCFG:
         next = self.origin
         curr_chain = None
         key_list=sorted(sequence.keys())
+        prev_args = None
         for i,lineno in enumerate(key_list):
         #for lineno, tup in sorted(sequence.items()):
             tup = sequence[lineno]
@@ -653,33 +657,56 @@ class PyCFG:
             else:
                 next_node = None
                 for loc in self.code_metadata["locations"]: 
-                    if loc["id"].startswith("on_"):
+                    next_loc = None
+                    if loc["id"].startswith("on_") and float(loc['id'].split("_")[-1]) > node.lineno():
                         next_loc = loc
                         break
-                usr_locs = [(i,loc) for i,loc in enumerate(self.code_metadata['locations']) if loc['id'].startswith('user_') and float(loc['id'].split("_")[-1]) < float(next_loc['id'].split("_")[-1]) and float(loc['id'].split("_")[-1]) > node.lineno()]
+                if next_loc:
+                    usr_locs = [(i,loc) for i,loc in enumerate(self.code_metadata['locations']) if loc['id'].startswith('user_') and float(loc['id'].split("_")[-1]) < float(next_loc['id'].split("_")[-1]) and float(loc['id'].split("_")[-1]) > node.lineno()]
+                else:
+                    usr_locs = []
                 
             if port_nm is not None:
                 port_info = self.port_data[self.code_metadata['template']]['ports'][port_nm]
-                args = {'port' : port_nm, 'attr' : port_info}
+                if prev_args:
+                    args = prev_args
+                    args['port'] = port_nm
+                    args['attr'] = port_info
+                else:
+                    args = {'port' : port_nm, 'attr' : port_info}
             else:
-                args = None
+                args = prev_args
+            prev_args = None
                 
             if len(usr_locs) > 0:
+                dest = calls
                 for i,loc in usr_locs:
                     args = {'min': self.code_metadata['locations'][i]['min'],
                             'max': self.code_metadata['locations'][i]['max']}
-                    self.add_ta_edges(loc['id'], calls, args)
-                self.add_ta_edges(next, loc['id'], args)
-                continue
-            if (prev is None) or (called != self.get_defining_function(prev[0])):
+                    self.add_ta_edges(loc['id'], dest, args)
+                    dest = loc['id']
+                #self.add_ta_edges(next, loc['id'], args)
+                
+            if (prev is None) or (prev[0] is not None and called != self.get_defining_function(prev[0])):
                 called = self.get_defining_function(node)
                 self.add_ta_edges(calls, called, args)
                 # if prev is None:
                 #     next = called
+                # print("calls"+calls)
+                # print("prev %s" %str(prev))
                 prev = tup
             else:
                 self.add_ta_edges(calls, prev[1],args)
+                # print("calls"+calls)
+                # print("prev %s" %str(prev[1]))
+                # if prev[0] is not None:
+                #     print(self.get_defining_function(prev[0]))
                 prev = tup
+                
+            if len(usr_locs) > 0:
+                prev= (None, loc['id'], 'user_op', None)
+                prev_args = args
+                continue
             if next_node is not None:
                 if self.get_defining_function(next_node).startswith('on_') and curr_chain != self.get_defining_function(next_node):
                     # print('curr chain'+curr_chain)
