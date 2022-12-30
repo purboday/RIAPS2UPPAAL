@@ -71,6 +71,46 @@ int pop(intq &port)
     }
 }
 {% set ns=namespace(id=1) %}
+{% for actorName, actorObj in actorMap.items() %}
+{% for compKey, compVal in actorObj.comps %}
+{% for host in actorObj.target %}
+{% for portName, portAttr in compInfo.compVal.inst.ports.items() %}
+intq {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}}_q = {0,-1,-1,{ {% for i in range(maxSize - 1) %}0,{% endfor %}0},{{ns.id}}};
+{% set ns.id = ns.id + 1 %}
+{% if portAttr.type == 'sub' or portAttr.type == 'qry' or portAttr.type == 'req'%}
+{% if portAttr.msgscope == 'local' %}
+int {{host}}_{{portAttr.msgtype[0]}}_value;
+broadcast chan {{host}}_{{portAttr.msgtype[0]}}_channel;
+{% else %}
+int {{portAttr.msgtype[0]}}_value;
+broadcast chan {{portAttr.msgtype[0]}}_channel;
+{% endif %}
+{% endif %}
+{% if portAttr.type == 'rep' or portAttr.type == 'ans' %}
+{% if portAttr.msgscope == 'local' %}
+int {{host}}_{{portAttr.msgtype[1]}}_value;
+broadcast chan {{host}}_{{portAttr.msgtype[1]}}_channel;
+{% else %}
+int {{portAttr.msgtype[1]}}_value;
+broadcast chan {{portAttr.msgtype[1]}}_channel;
+{% endif %}
+{% endif %}
+{% if portAttr.type == 'tim' %}
+chan {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}}_terminate;
+chan {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}}_activate;
+chan {{host}}_{{actorName}}_{{compVal.inst}}_start;
+chan {{host}}_{{actorName}}_{{compVal.inst}}_cancel;
+chan {{host}}_{{actorName}}_{{compVal.inst}}_deactivate;
+chan {{host}}_{{actorName}}_{{compVal.inst}}_setDelay;
+int {{host}}_{{actorName}}_{{compVal.inst}}_delay;
+{% endif %}
+{% endfor %}
+socketlist {{host}}_{{actorName}}_{{compVal.inst}}_sockets ={0,{{'{'}}{% for i in range(portCount - 1) %}-1,{% endfor %}-1{{'}}'}};
+int {{host}}_{{actorName}}_{{compVal.inst}}_socket;
+{% endfor %}
+{% endfor %}
+{% endfor %}
+{#
 {% for compName, portData in compInfo.items() %}
 {% for portName, portAttr in portData.ports.items() %}
 intq {{compName}}_{{portName}}_q = {0,-1,-1,{ {% for i in range(maxSize - 1) %}0,{% endfor %}0},{{ns.id}}};
@@ -96,6 +136,7 @@ int {{compName}}_{{portName}}_delay;
 socketlist {{compName}}_sockets ={0,{{'{'}}{% for i in range(portCount - 1) %}-1,{% endfor %}-1{{'}}'}};
 int {{compName}}_socket;
 {% endfor %}
+#}
 urgent chan go;
 urgent chan executehandler;
 urgent chan handlerexit;

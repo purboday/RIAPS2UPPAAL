@@ -16,6 +16,7 @@ from textx.exceptions import TextXSemanticError, TextXSyntaxError
 import textx.model
 import os
 from jinja2 import FileSystemLoader, Environment
+from riaps.lang.depl import DeploymentModel
 
 XMIN = -500
 XMAX = 500
@@ -90,6 +91,8 @@ class riaps2uppaal():
         self.sched = {}
         self.xtaFile = "%s/%s.xta" %(self.appFolder,self.appName)
         self.xtaContent = []
+        self.actorMap = {}
+        self.localMsgTypes = []
         
     def generate_cfg(self):
         assert self.modelData, "call parse_model() first to get model data"
@@ -206,8 +209,18 @@ class riaps2uppaal():
         except:
             raise
         self.appName = list(compiledApp.keys())[0]
+        
         with open(self.appName+'.json') as f:
             data = json.load(f)
+            for actor, actorObj in data['actors'].items():
+                self.actorMap[actor] = {'comps' : []}
+                for compInst, compActuals in actorObj['instances'].items():
+                    self.actorMap[actor]['comps'].append({'inst' : compInst, 
+                                                          'type' : compActuals['type']})
+                if len(actorObj['locals']) > 0:
+                    self.localMsgTypes += [val['type'] for val in actorObj['locals']]
+            print(self.localMsgTypes)
+            
             for comp, compObj in data['components'].items():
                 self.modelData[compObj['name']]={'ports' : {}}
                 for portType, portObjs in compObj['ports'].items():
@@ -215,8 +228,16 @@ class riaps2uppaal():
                         insert = {'type' : portType[:-1]}
                         if portType in ['pubs','subs']:
                             insert['msgtype']= [portAttr['type']]
+                            if portAttr['type'] in self.localMsgTypes:
+                                insert['msgscope'] = 'local'
+                            else:
+                                insert['msgscope'] = 'global'
                         if portType in ['reqs','reps','qrys','anss','clts','srvs']:
                             insert['msgtype'] = [portAttr['req_type'],portAttr['rep_type']]
+                            if portAttr['req_type'] in self.localMsgTypes:
+                                insert['msgscope'] = 'local'
+                            else:
+                                insert['msgscope'] = 'global'
                         if portType in ['tims']:
                             insert['period'] = portAttr['period']
                             if portAttr['period'] == 0:
@@ -225,6 +246,29 @@ class riaps2uppaal():
                                 insert['timertype'] = 'periodic'
                         #self.ports.append({portName: insert})
                         self.modelData[compObj['name']]['ports'][portName]=insert
+                
+                        
+    def parse_depl(self, deplFile=None):
+        if deplFile is None:
+            deplFile = "%s.depl" % (self.appName)
+        try:
+            compiledDepl = DeploymentModel('%s/%s' %(self.appFolder,deplFile))
+            deployment = compiledDepl.getDeployments()
+            for deplObj in deployment:
+                for actor in deplObj['actors']:
+                    if 'target' not in self.actorMap[actor['name']]:
+                        self.actorMap[actor['name']]['target'] = []
+                    if len(deplObj['target']) > 0:
+                        self.actorMap[actor['name']]['target'] += deplObj['target']
+                        
+            print(str(self.actorMap))
+                        
+                    
+            
+        except:
+            raise
+        
+        
                         
     def add_xta(self, template, args={}):
         if template.split('.')[0] not in self.xtaContent:
@@ -240,10 +284,13 @@ class riaps2uppaal():
             
     def merge_xta(self):
         
-        self.add_xta("globalDecl.jinja", {'compInfo' : self.modelData, 'maxSize': 10, 'portCount' : self.calc_port_count()})
+        self.add_xta("globalDecl.jinja", {'actorMap' : self.actorMap,'compInfo' : self.modelData, 'maxSize': 10, 'portCount' : self.calc_port_count()})
         for compName, ports in self.modelData.items():
             if compName in self.cfg:
-                self.add_xta("genericComponent.jinja", {'compInfo' : self.cfg[compName].code_metadata})
+                for portName, portData in self.modelData[compName]['ports'].items():
+                    if portData['type'] !='tim':
+                        portArgs += ','
+                self.add_xta("genericComponent.jinja", {'actorMap' : self.actorMap, 'compInfo' : self.cfg[compName].code_metadata})
                 self.add_xta("batchScheduler.jinja", {'compInfo' : self.sched[compName].scheduler_metadata})
             for portName, portAttr in ports["ports"].items():
                 if portAttr["type"] == "tim":
@@ -264,14 +311,15 @@ class riaps2uppaal():
                     self.add_xta("answer.jinja")
                     #self.xtaContent.append("answer")
         self.add_xta("urgentEdge.jinja")
-        self.add_xta("templateInst.jinja", {'compInfo' : self.modelData})
+        self.add_xta("templateInst.jinja", {'actorMap' : self.actorMap,'compInfo' : self.modelData})
         
 obj = riaps2uppaal('/home/riaps/riaps_projects/DistributedEstimator/Python/','DistributedEstimator')
 obj.parse_model('sample.riaps')
-obj.generate_cfg()
+obj.parse_depl('variation1.depl')
+#obj.generate_cfg()
 # for comp, item in obj.cfg.items():
 #     print(item.code_metadata)
-obj.merge_xta()
+#obj.merge_xta()
 # g = obj.print_cfg()
 # for item in g:
 #     print(item)

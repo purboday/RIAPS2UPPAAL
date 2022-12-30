@@ -95,6 +95,7 @@ class PyCFG:
         self.code_metadata['committed'] = []
         self.code_metadata['edges']=[]
         self.code_metadata['specs']=[]
+        self.code_metadata['port_args'] = ''
         self.auto_edges = []
         self.user_edges = []
         self.port_data = None
@@ -466,6 +467,14 @@ class PyCFG:
             for p in node.parents:
                 p.add_child(node)
                 
+    def generate_port_arguments(self):
+        for portName, portAttr in self.port_data[self.code_metadata['template']]['ports'].items():
+            if portAttr['type'] != 'tim':
+                self.code_metadata['port_args']+= 'intq &%s_inst,broadcast chan &%s_chan,' %(portName)
+            else:
+                self.code_metadata['port_args']+= 'chan &%s_activate, chan &%s_deactivate, chan &%s_start, chan &%s_cancel, chan &%s_terminate, chan &%s_setDelay, intq &%s_inst,' %(portName)
+            self.code_metadata['port_args'] = self.code_metadata['port_args'][1:]
+                
     def add_ta_edges(self, calls, called, args=None):
         
         src = None
@@ -512,10 +521,11 @@ class PyCFG:
         # send_pyobj() transitions
         
         elif 'post_send' in edge['target']:
-            if args['attr']['type'] in ['pub','req','qry','clt']:
-                edge['sync'] = "%s_channel!" %(args['attr']['msgtype'][0])
-            else:
-                edge['sync'] = "%s_channel!" %(args['attr']['msgtype'][1])
+            edge['sync'] = "%s_channel!" %(args['port'])
+            # if args['attr']['type'] in ['pub','req','qry','clt']:
+            #     edge['sync'] = "%s_channel!" %(args['attr']['msgtype'][0])
+            # else:
+            #     edge['sync'] = "%s_channel!" %(args['attr']['msgtype'][1])
                 
             if args['attr']['type'] in ['qry','ans']:
                 edge['assign'] = "identity = %s_%s_q.id" %(self.code_metadata['template'],args['port'])
@@ -754,6 +764,7 @@ class PyCFG:
         self.update_functions()
         self.link_functions()
         self.add_riaps_ports()
+        self.generate_port_arguments()
         
 class BatchSchedulerModel:
     def __init__(self, comp_name, port_data):
@@ -763,6 +774,10 @@ class BatchSchedulerModel:
         self.scheduler_metadata['guard'] = ''
         self.scheduler_metadata['assign']=''
         self.port_data = port_data
+        self.generate_port_arguments()
+        
+    def generate_port_arguments(self):
+        self.scheduler_metadata['port_args']= ','.join(['intq &%s_inst' %(portName) for portName, portAttr in self.port_data[self.scheduler_metadata['template']]['ports'].items()])
         
     def gen_cfg(self):
         self.scheduler_metadata['guard'] = '||'.join('%s_%s_q.curr_size > 0' %(self.scheduler_metadata['template'],port_name) for port_name in self.port_data['ports'])

@@ -1,4 +1,4 @@
-process batchscheduler_{{compInfo.template}}(socketlist &sockets, int &socket) {
+process batchscheduler_{{compInfo.template}}(socketlist &sockets, int &socket{% if compInfo.port_args != '' %},{{compInfo.port_args}}) {
 int index = 0;
 int pos = 0;
 void poll(intq & port)

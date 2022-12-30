@@ -1,4 +1,4 @@
-process {{compInfo.template}}(int &socket) {
+process {{compInfo.template}}(int &socket{% if compInfo.port_args != '' %},{{compInfo.port_args}}{% endif %}) {
 
 // Place local declarations here.
 int status;
