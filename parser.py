@@ -285,31 +285,79 @@ class riaps2uppaal():
     def merge_xta(self):
         
         self.add_xta("globalDecl.jinja", {'actorMap' : self.actorMap,'compInfo' : self.modelData, 'maxSize': 10, 'portCount' : self.calc_port_count()})
-        for compName, ports in self.modelData.items():
-            if compName in self.cfg:
-                for portName, portData in self.modelData[compName]['ports'].items():
-                    if portData['type'] !='tim':
-                        portArgs += ','
-                self.add_xta("genericComponent.jinja", {'actorMap' : self.actorMap, 'compInfo' : self.cfg[compName].code_metadata})
-                self.add_xta("batchScheduler.jinja", {'compInfo' : self.sched[compName].scheduler_metadata})
-            for portName, portAttr in ports["ports"].items():
-                if portAttr["type"] == "tim":
-                    self.add_xta("timer.jinja", {"comp_name": compName, "port_name" : portName, "port" : portAttr})
-                    #self.xtaContent.append("timer")
-                if portAttr["type"] == "sub":
-                    self.add_xta("subscribe.jinja")
-                    #nd("timer")
-                if portAttr["type"] == "req":
-                    self.add_xta("request.jinja")
-                if portAttr["type"] == "rep":
-                    self.add_xta("reply.jinja")
-                    #self.xtaContent.append("reply")
-                if portAttr["type"] == "qry":
-                    self.add_xta("query.jinja")
-                    #self.xtaContent.append("query")
-                if portAttr["type"] == "ans":
-                    self.add_xta("answer.jinja")
-                    #self.xtaContent.append("answer")
+        self.templateArgs = {}
+        for actor, actuals in self.actorMap.items():
+            for key, compAttr in actuals['comps'].items():
+                for host in actuals['target']:
+                    templateKey = '%s_%s_%s' %(host,actor,compAttr['inst'])
+                    self.templateArgs[templateKey]='%s_%s_%s_socket,' %(host,actor,compAttr['inst'])
+                    for portName, portAttr in self.modelData[compAttr['type']]["ports"].items():
+                        if portAttr["type"] == "tim":
+                            self.add_xta("timer.jinja")
+                        #self.xtaContent.append("timer")
+                        if portAttr["type"] == "sub":
+                            self.add_xta("subscribe.jinja")
+                            if portAttr["msgscope"] == "local":
+                                self.templateArgs[templateKey] += "%s_%s_%s_%s_q, %s_%s_channel," %(host,actor,compAttr['inst'],portName, host, portAttr['msgtype'])
+                            else:
+                                self.templateArgs[templateKey] += "%s_%s_%s_%s_q, %s_channel," %(host,actor,compAttr['inst'],portName,portAttr['msgtype'])
+                            #nd("timer")
+                        if portAttr["type"] == "req":
+                            self.add_xta("request.jinja")
+                        if portAttr["type"] == "rep":
+                            self.add_xta("reply.jinja")
+                            #self.xtaContent.append("reply")
+                        if portAttr["type"] == "qry":
+                            self.add_xta("query.jinja")
+                            #self.xtaContent.append("query")
+                        if portAttr["type"] == "ans":
+                            self.add_xta("answer.jinja")
+                            #self.xtaContent.append("answer")
+                            
+                        # set arguments for template instances based on deployment and message scope defined
+                        
+                        if portAttr["type"] != "tim":
+                            if portAttr["msgscope"] == "local":
+                                self.templateArgs[templateKey] += "%s_%s_activate, %s_%s_deactivate, %s_%s_start, %s_%s_cancel, %s_%s_terminate, %s_%s_setDelay, %s_%s_q, %s_%s_channel, " %(templateKey,portName,templateKey,portName,templateKey,portName,templateKey,portName,templateKey,portName,templateKey,portName,templateKey,portName, host, portAttr['msgtype'][0])
+                            else:
+                                self.templateArgs[templateKey] += "%s_%s_activate, %s_%s_deactivate, %s_%s_start, %s_%s_cancel, %s_%s_terminate, %s_%s_setDelay, %s_%s_q, %s_channel, " %(templateKey,portName,templateKey,portName,templateKey,portName,templateKey,portName,templateKey,portName,templateKey,portName,templateKey,portName, portAttr['msgtype'][0])
+                        else:
+                            if portAttr["type"] in ["pub","sub","qry","req"]:
+                                if portAttr["msgscope"] == "local":
+                                    self.templateArgs[templateKey] += "%s_%s_q, %s_%s_channel," %(templateKey,portName, host, portAttr['msgtype'][0])
+                                else:
+                                    self.templateArgs[templateKey] += "%s_%s_q, %s_channel," %(templateKey,portName,portAttr['msgtype'][0])
+                                    
+                            if portAttr["type"] in ["rep","ans"]:
+                                if portAttr["msgscope"] == "local":
+                                    self.templateArgs[templateKey] += "%s_%s_q, %s_%s_channel," %(templateKey,portName, host, portAttr['msgtype'][1])
+                                else:
+                                    self.templateArgs[templateKey] += "%s_%s_q, %s_channel," %(templateKey,portName,portAttr['msgtype'][1])
+                            
+                                
+                    
+        # for compName, ports in self.modelData.items():
+        #     if compName in self.cfg:
+        #         self.add_xta("genericComponent.jinja", {'actorMap' : self.actorMap, 'compInfo' : self.cfg[compName].code_metadata})
+        #         self.add_xta("batchScheduler.jinja", {'compInfo' : self.sched[compName].scheduler_metadata})
+        #     for portName, portAttr in ports["ports"].items():
+        #         if portAttr["type"] == "tim":
+        #             self.add_xta("timer.jinja", {"comp_name": compName, "port_name" : portName, "port" : portAttr})
+        #             #self.xtaContent.append("timer")
+        #         if portAttr["type"] == "sub":
+        #             self.add_xta("subscribe.jinja")
+        #             #nd("timer")
+        #         if portAttr["type"] == "req":
+        #             self.add_xta("request.jinja")
+        #         if portAttr["type"] == "rep":
+        #             self.add_xta("reply.jinja")
+        #             #self.xtaContent.append("reply")
+        #         if portAttr["type"] == "qry":
+        #             self.add_xta("query.jinja")
+        #             #self.xtaContent.append("query")
+        #         if portAttr["type"] == "ans":
+        #             self.add_xta("answer.jinja")
+        #             #self.xtaContent.append("answer")
         self.add_xta("urgentEdge.jinja")
         self.add_xta("templateInst.jinja", {'actorMap' : self.actorMap,'compInfo' : self.modelData})
         

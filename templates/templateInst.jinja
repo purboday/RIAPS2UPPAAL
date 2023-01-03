@@ -3,11 +3,11 @@
 {% for actorName, actorObj in actorMap.items() %}
 {% for compKey, compVal in actorObj.comps %}
 {% for host in actorObj.target %}
-{{host}}_{{actorName}}_{{compVal.inst}} = {{compVal.inst}}({{host}}_{{actorName}}_{{compVal.inst}}_socket);
+{{host}}_{{actorName}}_{{compVal.inst}} = {{compVal.inst}}({{templateArgs[compVal.inst]}});
 {% if loop.first %}
-{% set ns.processes = {{host}}_{{actorName}}_{{compVal.inst}} %}
+{% set ns.processes = host~'_'~actorName~'_'~compVal.inst %}
 {% else %}
-{% set ns.processes = ns.processes ~ ',' ~ {{host}}_{{actorName}}_{{compVal.inst}} %}
+{% set ns.processes = ns.processes ~ ',' ~ host~'_'~actorName~'_'~compVal.inst %}
 {% endif %}
 {% for portName, portAttr in compInfo.compVal.inst.ports.items() %}
 {% if portAttr.type == 'sub' %}
@@ -16,38 +16,38 @@
 {% else %}
 {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}} = subscribe_port({{portAttr.msgtype[0]}}_channel, {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}}_q);
 {% endif %}
-{% set ns.processes = ns.processes ~ ',' ~ {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}} %}
+{% set ns.processes = ns.processes ~ ',' ~ host~'_'~actorName~'_'~compVal.inst~'_'~portName %}
 {% elif portAttr.type == 'req' %}
 {% if portAttr.msgscope == 'local %}
 {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}} = request_port({{host}}_{{portAttr.msgtype[1]}}_channel, {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}}_q);
 {% else %}
 {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}} = request_port({{portAttr.msgtype[1]}}_channel, {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}}_q);
 {% endif %}
-{% set ns.processes = ns.processes ~ ',' ~ {{host}}_{{actorName}}_{{compVal.inst}} %}
+{% set ns.processes = ns.processes ~ ',' ~ host~'_'~actorName~'_'~compVal.inst~'_'~portName %}
 {% elif portAttr.type == 'rep' %}
 {% if portAttr.msgscope == 'local %}
 {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}} = reply_port({{host}}_{{portAttr.msgtype[0]}}_channel, {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}}_q);
 {% else %}
 {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}} = reply_port({{portAttr.msgtype[0]}}_channel, {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}}_q);
 {% endif %}
-{% set ns.processes = ns.processes ~ ',' ~ {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}} %}
+{% set ns.processes = ns.processes ~ ',' ~ host~'_'~actorName~'_'~compVal.inst~'_'~portName %}
 {% elif portAttr.type == 'qry' %}
 {% if portAttr.msgscope == 'local %}
 {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}} = query_port({{host}}_{{portAttr.msgtype[1]}}_channel, {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}}_q);
 {% else %}
 {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}} = query_port({{portAttr.msgtype[1]}}_channel, {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}}_q);
 {% endif %}
-{% set ns.processes = ns.processes ~ ',' ~ {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}} %}
+{% set ns.processes = ns.processes ~ ',' ~ host~'_'~actorName~'_'~compVal.inst~'_'~portName %}
 {% elif portAttr.type == 'ans' %}
 {% if portAttr.msgscope == 'local %}
 {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}} = answer_port({{host}}_{{portAttr.msgtype[0]}}_channel, {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}}_q);
 {% else %}
 {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}} = answer_port({{portAttr.msgtype[0]}}_channel, {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}}_q);
 {% endif %}
-{% set ns.processes = ns.processes ~ ',' ~ c{{host}}_{{actorName}}_{{compVal.inst}}_{{portName}} %}
+{% set ns.processes = ns.processes ~ ',' ~ host~'_'~actorName~'_'~compVal.inst~'_'~portName %}
 {% elif portAttr.type == 'tim' %}
 {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}} = timer_port({{host}}_{{actorName}}_{{compVal.inst}}_{{portName}}_activate, {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}}_deactivate, {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}}_start, {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}}_cancel, {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}}_terminate, {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}}_setDelay, {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}}_q, {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}}_delay, {{portAttr.period}}, {% if portAttr.timertype == 'periodic' %}true, true, true {% else %}false, false, false {% endif %},{{portAttr.period}});
-{% set ns.processes = ns.processes ~ ',' ~ {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}} %}
+{% set ns.processes = ns.processes ~ ',' ~ host~'_'~actorName~'_'~compVal.inst~'_'~portName %}
 {% endif %}
 {% endfor %}
 {{compName}}Scheduler = batchscheduler_{{compName}}({{compName}}_sockets, {{compName}}_socket);
