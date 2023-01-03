@@ -777,7 +777,7 @@ class BatchSchedulerModel:
         self.generate_port_arguments()
         
     def generate_port_arguments(self):
-        self.scheduler_metadata['port_args']= ','.join(['intq &%s_inst' %(portName) for portName, portAttr in self.port_data[self.scheduler_metadata['template']]['ports'].items()])
+        self.scheduler_metadata['port_args']= ','.join(['intq &%s' %(portName) for portName, portAttr in self.port_data[self.scheduler_metadata['template']]['ports'].items()])
         
     def gen_cfg(self):
         self.scheduler_metadata['guard'] = '||'.join('%s_%s_q.curr_size > 0' %(self.scheduler_metadata['template'],port_name) for port_name in self.port_data['ports'])

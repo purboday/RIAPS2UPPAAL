@@ -3,7 +3,7 @@
 {% for actorName, actorObj in actorMap.items() %}
 {% for compKey, compVal in actorObj.comps %}
 {% for host in actorObj.target %}
-{{host}}_{{actorName}}_{{compVal.inst}} = {{compVal.inst}}({{templateArgs[compVal.inst]}});
+{{host}}_{{actorName}}_{{compVal.inst}} = {{compVal.inst}}({{templateArgs[host~'_'~actorName~'_'~compVal.inst]}});
 {% if loop.first %}
 {% set ns.processes = host~'_'~actorName~'_'~compVal.inst %}
 {% else %}
@@ -50,8 +50,8 @@
 {% set ns.processes = ns.processes ~ ',' ~ host~'_'~actorName~'_'~compVal.inst~'_'~portName %}
 {% endif %}
 {% endfor %}
-{{compName}}Scheduler = batchscheduler_{{compName}}({{compName}}_sockets, {{compName}}_socket);
-{% set ns.processes = ns.processes ~ ',' ~ compName ~ 'Scheduler' %}
+{{host}}_{{actorName}}_{{compVal.inst}}Scheduler = batchscheduler_{{compName}}(templateArgs[host~'_'~actorName~'_'~compVal.inst~'Scheduler']);
+{% set ns.processes = ns.processes ~ ',' ~ host~'_'~actorName~'_'~compVal.inst~'Scheduler' %}
 {% endfor %}
 {% endfor %}
 {% endfor %}

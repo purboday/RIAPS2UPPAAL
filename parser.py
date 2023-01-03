@@ -93,6 +93,8 @@ class riaps2uppaal():
         self.xtaContent = []
         self.actorMap = {}
         self.localMsgTypes = []
+        self.templateArgs = {}
+        self.schedArgs = {}
         
     def generate_cfg(self):
         assert self.modelData, "call parse_model() first to get model data"
@@ -285,22 +287,18 @@ class riaps2uppaal():
     def merge_xta(self):
         
         self.add_xta("globalDecl.jinja", {'actorMap' : self.actorMap,'compInfo' : self.modelData, 'maxSize': 10, 'portCount' : self.calc_port_count()})
-        self.templateArgs = {}
         for actor, actuals in self.actorMap.items():
             for key, compAttr in actuals['comps'].items():
                 for host in actuals['target']:
                     templateKey = '%s_%s_%s' %(host,actor,compAttr['inst'])
-                    self.templateArgs[templateKey]='%s_%s_%s_socket,' %(host,actor,compAttr['inst'])
+                    self.templateArgs[templateKey]='%s_socket,' %(templateKey)
+                    self.schedArgs["%sScheduler" % (templateKey)] = "%s_sockets, %s_socket," %(templateKey)
                     for portName, portAttr in self.modelData[compAttr['type']]["ports"].items():
                         if portAttr["type"] == "tim":
                             self.add_xta("timer.jinja")
                         #self.xtaContent.append("timer")
                         if portAttr["type"] == "sub":
                             self.add_xta("subscribe.jinja")
-                            if portAttr["msgscope"] == "local":
-                                self.templateArgs[templateKey] += "%s_%s_%s_%s_q, %s_%s_channel," %(host,actor,compAttr['inst'],portName, host, portAttr['msgtype'])
-                            else:
-                                self.templateArgs[templateKey] += "%s_%s_%s_%s_q, %s_channel," %(host,actor,compAttr['inst'],portName,portAttr['msgtype'])
                             #nd("timer")
                         if portAttr["type"] == "req":
                             self.add_xta("request.jinja")
@@ -321,6 +319,7 @@ class riaps2uppaal():
                                 self.templateArgs[templateKey] += "%s_%s_activate, %s_%s_deactivate, %s_%s_start, %s_%s_cancel, %s_%s_terminate, %s_%s_setDelay, %s_%s_q, %s_%s_channel, " %(templateKey,portName,templateKey,portName,templateKey,portName,templateKey,portName,templateKey,portName,templateKey,portName,templateKey,portName, host, portAttr['msgtype'][0])
                             else:
                                 self.templateArgs[templateKey] += "%s_%s_activate, %s_%s_deactivate, %s_%s_start, %s_%s_cancel, %s_%s_terminate, %s_%s_setDelay, %s_%s_q, %s_channel, " %(templateKey,portName,templateKey,portName,templateKey,portName,templateKey,portName,templateKey,portName,templateKey,portName,templateKey,portName, portAttr['msgtype'][0])
+                            self.schedArgs["%sScheduler" % (templateKey)] += "%s_%s," %(templateKey,portName)
                         else:
                             if portAttr["type"] in ["pub","sub","qry","req"]:
                                 if portAttr["msgscope"] == "local":
@@ -333,6 +332,7 @@ class riaps2uppaal():
                                     self.templateArgs[templateKey] += "%s_%s_q, %s_%s_channel," %(templateKey,portName, host, portAttr['msgtype'][1])
                                 else:
                                     self.templateArgs[templateKey] += "%s_%s_q, %s_channel," %(templateKey,portName,portAttr['msgtype'][1])
+                            self.schedArgs["%sScheduler" % (templateKey)] += "%s_%s," %(templateKey,portName)
                             
                                 
                     
@@ -359,7 +359,7 @@ class riaps2uppaal():
         #             self.add_xta("answer.jinja")
         #             #self.xtaContent.append("answer")
         self.add_xta("urgentEdge.jinja")
-        self.add_xta("templateInst.jinja", {'actorMap' : self.actorMap,'compInfo' : self.modelData})
+        self.add_xta("templateInst.jinja", {'actorMap' : self.actorMap,'compInfo' : self.modelData, 'templateArgs': self.templateArgs})
         
 obj = riaps2uppaal('/home/riaps/riaps_projects/DistributedEstimator/Python/','DistributedEstimator')
 obj.parse_model('sample.riaps')
