@@ -316,9 +316,9 @@ class riaps2uppaal():
                         
                         if portAttr["type"] != "tim":
                             if portAttr["msgscope"] == "local":
-                                self.templateArgs[templateKey] += "%s_%s_activate, %s_%s_deactivate, %s_%s_start, %s_%s_cancel, %s_%s_terminate, %s_%s_setDelay, %s_%s_q, %s_%s_channel, " %(templateKey,portName,templateKey,portName,templateKey,portName,templateKey,portName,templateKey,portName,templateKey,portName,templateKey,portName, host, portAttr['msgtype'][0])
+                                self.templateArgs[templateKey] += "%s_%s_activate, %s_%s_deactivate, %s_%s_start, %s_%s_cancel, %s_%s_terminate, %s_%s_setDelay, %s_%s_q, " %(templateKey,portName,templateKey,portName,templateKey,portName,templateKey,portName,templateKey,portName,templateKey,portName,templateKey,portName)
                             else:
-                                self.templateArgs[templateKey] += "%s_%s_activate, %s_%s_deactivate, %s_%s_start, %s_%s_cancel, %s_%s_terminate, %s_%s_setDelay, %s_%s_q, %s_channel, " %(templateKey,portName,templateKey,portName,templateKey,portName,templateKey,portName,templateKey,portName,templateKey,portName,templateKey,portName, portAttr['msgtype'][0])
+                                self.templateArgs[templateKey] += "%s_%s_activate, %s_%s_deactivate, %s_%s_start, %s_%s_cancel, %s_%s_terminate, %s_%s_setDelay, %s_%s_q, " %(templateKey,portName,templateKey,portName,templateKey,portName,templateKey,portName,templateKey,portName,templateKey,portName,templateKey,portName)
                             self.schedArgs["%sScheduler" % (templateKey)] += "%s_%s," %(templateKey,portName)
                         else:
                             if portAttr["type"] in ["pub","sub","qry","req"]:
@@ -329,9 +329,15 @@ class riaps2uppaal():
                                     
                             if portAttr["type"] in ["rep","ans"]:
                                 if portAttr["msgscope"] == "local":
-                                    self.templateArgs[templateKey] += "%s_%s_q, %s_%s_channel," %(templateKey,portName, host, portAttr['msgtype'][1])
+                                    if portAttr["type"] == "ans":
+                                        self.templateArgs[templateKey] += "%s_%s_identity,%s_%s_q, %s_%s_channel," %(templateKey,portName,templateKey,portName, host, portAttr['msgtype'][1])
+                                    else:
+                                        self.templateArgs[templateKey] += "%s_%s_q, %s_%s_channel," %(templateKey,portName, host, portAttr['msgtype'][1])
                                 else:
-                                    self.templateArgs[templateKey] += "%s_%s_q, %s_channel," %(templateKey,portName,portAttr['msgtype'][1])
+                                    if portAttr["type"] == "ans":
+                                        self.templateArgs[templateKey] += "%s_%s_identity,%s_%s_q, %s_channel," %(templateKey,portName,templateKey,portName, portAttr['msgtype'][1])
+                                    else:
+                                        self.templateArgs[templateKey] += "%s_%s_q, %s_channel," %(templateKey,portName,portAttr['msgtype'][1])
                             self.schedArgs["%sScheduler" % (templateKey)] += "%s_%s," %(templateKey,portName)
                             
                                 

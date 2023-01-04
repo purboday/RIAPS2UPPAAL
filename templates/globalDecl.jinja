@@ -93,6 +93,9 @@ broadcast chan {{host}}_{{portAttr.msgtype[1]}}_channel;
 {% else %}
 int {{portAttr.msgtype[1]}}_value;
 broadcast chan {{portAttr.msgtype[1]}}_channel;
+{% if portAttr.type == 'ans' %}
+int {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}}_identity;
+{% endif %}
 {% endif %}
 {% endif %}
 {% if portAttr.type == 'tim' %}

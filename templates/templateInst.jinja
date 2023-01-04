@@ -40,9 +40,9 @@
 {% set ns.processes = ns.processes ~ ',' ~ host~'_'~actorName~'_'~compVal.inst~'_'~portName %}
 {% elif portAttr.type == 'ans' %}
 {% if portAttr.msgscope == 'local %}
-{{host}}_{{actorName}}_{{compVal.inst}}_{{portName}} = answer_port({{host}}_{{portAttr.msgtype[0]}}_channel, {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}}_q);
+{{host}}_{{actorName}}_{{compVal.inst}}_{{portName}} = answer_port({{host}}_{{portAttr.msgtype[0]}}_identity,{{host}}_{{portAttr.msgtype[0]}}_channel, {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}}_q);
 {% else %}
-{{host}}_{{actorName}}_{{compVal.inst}}_{{portName}} = answer_port({{portAttr.msgtype[0]}}_channel, {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}}_q);
+{{host}}_{{actorName}}_{{compVal.inst}}_{{portName}} = answer_port({{host}}_{{portAttr.msgtype[0]}}_identity,{{portAttr.msgtype[0]}}_channel, {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}}_q);
 {% endif %}
 {% set ns.processes = ns.processes ~ ',' ~ host~'_'~actorName~'_'~compVal.inst~'_'~portName %}
 {% elif portAttr.type == 'tim' %}

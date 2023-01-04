@@ -469,10 +469,17 @@ class PyCFG:
                 
     def generate_port_arguments(self):
         for portName, portAttr in self.port_data[self.code_metadata['template']]['ports'].items():
-            if portAttr['type'] != 'tim':
-                self.code_metadata['port_args']+= 'intq &%s,broadcast chan &%s_chan,' %(portName)
-            else:
+            if portAttr['type'] == 'tim':
                 self.code_metadata['port_args']+= 'chan &%s_activate, chan &%s_deactivate, chan &%s_start, chan &%s_cancel, chan &%s_terminate, chan &%s_setDelay, intq &%s,' %(portName)
+            if portAttr['type'] in ['rep','ans']:
+                if portAttr['type'] == 'ans':
+                    self.code_metadata['port_args']+= 'int& ans_port_identity, intq &%s,broadcast chan &%s_channel,' %(portName, portAttr['msgtype'][1])
+                else:
+                    self.code_metadata['port_args']+= 'intq &%s,broadcast chan &%s_channel,' %(portName, portAttr['msgtype'][1])
+            
+            if portAttr['type'] in ["pub","sub","qry","req"]:
+                self.code_metadata['port_args']+= 'intq &%s,broadcast chan &%s_channel,' %(portName, portAttr['msgtype'][0])
+                
             self.code_metadata['port_args'] = self.code_metadata['port_args'][:-1]
                 
     def add_ta_edges(self, calls, called, args=None):
