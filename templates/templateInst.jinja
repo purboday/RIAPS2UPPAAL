@@ -1,45 +1,45 @@
 // Place template instantiations here.
 {% set ns=namespace(processes='') %}
 {% for actorName, actorObj in actorMap.items() %}
-{% for compKey, compVal in actorObj.comps %}
-{% for host in actorObj.target %}
-{{host}}_{{actorName}}_{{compVal.inst}} = {{compVal.inst}}({{templateArgs[host~'_'~actorName~'_'~compVal.inst]}});
 {% if loop.first %}
-{% set ns.processes = host~'_'~actorName~'_'~compVal.inst %}
-{% else %}
-{% set ns.processes = ns.processes ~ ',' ~ host~'_'~actorName~'_'~compVal.inst %}
+{% set ns.processes ='' %}
 {% endif %}
-{% for portName, portAttr in compInfo.compVal.inst.ports.items() %}
+{% for compVal in actorObj.comps %}
+{% for host in actorObj.target %}
+{{host}}_{{actorName}}_{{compVal.inst}} = {{compVal.type}}({% for templateKey, argString in templateArgs.items() if templateKey == host~'_'~actorName~'_'~compVal.inst %}{{argString}}{% endfor %});
+{% set ns.processes = ns.processes ~ ',' ~ host~'_'~actorName~'_'~compVal.inst %}
+{% for compName, portData in compInfo.items() if compName == compVal.type %}
+{% for portName, portAttr in portData.ports.items() %}
 {% if portAttr.type == 'sub' %}
-{% if portAttr.msgscope == 'local %}
+{% if portAttr.msgscope == 'local' %}
 {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}} = subscribe_port({{host}}_{{portAttr.msgtype[0]}}_channel, {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}}_q);
 {% else %}
 {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}} = subscribe_port({{portAttr.msgtype[0]}}_channel, {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}}_q);
 {% endif %}
-{% set ns.processes = ns.processes ~ ',' ~ host~'_'~actorName~'_'~compVal.inst~'_'~portName %}
+{% set ns.processes = ns.processes ~ ',' ~ host ~ '_' ~ actorName ~ '_' ~ compVal.inst ~ '_' ~ portName %}
 {% elif portAttr.type == 'req' %}
-{% if portAttr.msgscope == 'local %}
+{% if portAttr.msgscope == 'local' %}
 {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}} = request_port({{host}}_{{portAttr.msgtype[1]}}_channel, {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}}_q);
 {% else %}
 {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}} = request_port({{portAttr.msgtype[1]}}_channel, {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}}_q);
 {% endif %}
 {% set ns.processes = ns.processes ~ ',' ~ host~'_'~actorName~'_'~compVal.inst~'_'~portName %}
 {% elif portAttr.type == 'rep' %}
-{% if portAttr.msgscope == 'local %}
+{% if portAttr.msgscope == 'local' %}
 {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}} = reply_port({{host}}_{{portAttr.msgtype[0]}}_channel, {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}}_q);
 {% else %}
 {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}} = reply_port({{portAttr.msgtype[0]}}_channel, {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}}_q);
 {% endif %}
 {% set ns.processes = ns.processes ~ ',' ~ host~'_'~actorName~'_'~compVal.inst~'_'~portName %}
 {% elif portAttr.type == 'qry' %}
-{% if portAttr.msgscope == 'local %}
+{% if portAttr.msgscope == 'local' %}
 {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}} = query_port({{host}}_{{portAttr.msgtype[1]}}_channel, {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}}_q);
 {% else %}
 {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}} = query_port({{portAttr.msgtype[1]}}_channel, {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}}_q);
 {% endif %}
 {% set ns.processes = ns.processes ~ ',' ~ host~'_'~actorName~'_'~compVal.inst~'_'~portName %}
 {% elif portAttr.type == 'ans' %}
-{% if portAttr.msgscope == 'local %}
+{% if portAttr.msgscope == 'local' %}
 {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}} = answer_port({{host}}_{{portAttr.msgtype[0]}}_identity,{{host}}_{{portAttr.msgtype[0]}}_channel, {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}}_q);
 {% else %}
 {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}} = answer_port({{host}}_{{portAttr.msgtype[0]}}_identity,{{portAttr.msgtype[0]}}_channel, {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}}_q);
@@ -50,7 +50,8 @@
 {% set ns.processes = ns.processes ~ ',' ~ host~'_'~actorName~'_'~compVal.inst~'_'~portName %}
 {% endif %}
 {% endfor %}
-{{host}}_{{actorName}}_{{compVal.inst}}Scheduler = batchscheduler_{{compName}}(templateArgs[host~'_'~actorName~'_'~compVal.inst~'Scheduler']);
+{% endfor %}
+{{host}}_{{actorName}}_{{compVal.inst}}Scheduler = batchscheduler_{{compVal.type}}({% for templateKey, argString in schedArgs.items() if templateKey == host~'_'~actorName~'_'~compVal.inst~'Scheduler' %}{{argString}}{% endfor %});
 {% set ns.processes = ns.processes ~ ',' ~ host~'_'~actorName~'_'~compVal.inst~'Scheduler' %}
 {% endfor %}
 {% endfor %}

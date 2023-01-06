@@ -72,9 +72,10 @@ int pop(intq &port)
 }
 {% set ns=namespace(id=1) %}
 {% for actorName, actorObj in actorMap.items() %}
-{% for compKey, compVal in actorObj.comps %}
+{% for compVal in actorObj.comps %}
 {% for host in actorObj.target %}
-{% for portName, portAttr in compInfo.compVal.inst.ports.items() %}
+{% for compName, portData in compInfo.items() if compName == compVal.type%}
+{% for portName, portAttr in portData.ports.items() %}
 intq {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}}_q = {0,-1,-1,{ {% for i in range(maxSize - 1) %}0,{% endfor %}0},{{ns.id}}};
 {% set ns.id = ns.id + 1 %}
 {% if portAttr.type == 'sub' or portAttr.type == 'qry' or portAttr.type == 'req'%}
@@ -107,6 +108,7 @@ chan {{host}}_{{actorName}}_{{compVal.inst}}_deactivate;
 chan {{host}}_{{actorName}}_{{compVal.inst}}_setDelay;
 int {{host}}_{{actorName}}_{{compVal.inst}}_delay;
 {% endif %}
+{% endfor %}
 {% endfor %}
 socketlist {{host}}_{{actorName}}_{{compVal.inst}}_sockets ={0,{{'{'}}{% for i in range(portCount - 1) %}-1,{% endfor %}-1{{'}}'}};
 int {{host}}_{{actorName}}_{{compVal.inst}}_socket;

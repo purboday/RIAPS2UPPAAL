@@ -90,6 +90,8 @@ class riaps2uppaal():
             loader = FileSystemLoader("templates"))
         self.sched = {}
         self.xtaFile = "%s/%s.xta" %(self.appFolder,self.appName)
+        file = open(self.xtaFile,'w')
+        file.close()
         self.xtaContent = []
         self.actorMap = {}
         self.localMsgTypes = []
@@ -221,7 +223,6 @@ class riaps2uppaal():
                                                           'type' : compActuals['type']})
                 if len(actorObj['locals']) > 0:
                     self.localMsgTypes += [val['type'] for val in actorObj['locals']]
-            print(self.localMsgTypes)
             
             for comp, compObj in data['components'].items():
                 self.modelData[compObj['name']]={'ports' : {}}
@@ -263,7 +264,6 @@ class riaps2uppaal():
                     if len(deplObj['target']) > 0:
                         self.actorMap[actor['name']]['target'] += deplObj['target']
                         
-            print(str(self.actorMap))
                         
                     
             
@@ -286,13 +286,15 @@ class riaps2uppaal():
             
     def merge_xta(self):
         
+        print(str(self.actorMap))
+        print(str(self.modelData))
         self.add_xta("globalDecl.jinja", {'actorMap' : self.actorMap,'compInfo' : self.modelData, 'maxSize': 10, 'portCount' : self.calc_port_count()})
         for actor, actuals in self.actorMap.items():
-            for key, compAttr in actuals['comps'].items():
+            for compAttr in actuals['comps']:
                 for host in actuals['target']:
                     templateKey = '%s_%s_%s' %(host,actor,compAttr['inst'])
                     self.templateArgs[templateKey]='%s_socket,' %(templateKey)
-                    self.schedArgs["%sScheduler" % (templateKey)] = "%s_sockets, %s_socket," %(templateKey)
+                    self.schedArgs["%sScheduler" % (templateKey)] = "%s_sockets, %s_socket," %(templateKey, templateKey)
                     for portName, portAttr in self.modelData[compAttr['type']]["ports"].items():
                         if portAttr["type"] == "tim":
                             self.add_xta("timer.jinja")
@@ -340,7 +342,10 @@ class riaps2uppaal():
                                         self.templateArgs[templateKey] += "%s_%s_q, %s_channel," %(templateKey,portName,portAttr['msgtype'][1])
                             self.schedArgs["%sScheduler" % (templateKey)] += "%s_%s," %(templateKey,portName)
                             
-                                
+        for compName, ports in self.modelData.items():
+            if compName in self.cfg:
+                self.add_xta("genericComponent.jinja", {'compInfo' : self.cfg[compName].code_metadata})
+                self.add_xta("batchScheduler.jinja", {'compInfo' : self.sched[compName].scheduler_metadata})    
                     
         # for compName, ports in self.modelData.items():
         #     if compName in self.cfg:
@@ -365,15 +370,15 @@ class riaps2uppaal():
         #             self.add_xta("answer.jinja")
         #             #self.xtaContent.append("answer")
         self.add_xta("urgentEdge.jinja")
-        self.add_xta("templateInst.jinja", {'actorMap' : self.actorMap,'compInfo' : self.modelData, 'templateArgs': self.templateArgs})
+        self.add_xta("templateInst.jinja", {'actorMap' : self.actorMap,'compInfo' : self.modelData, 'templateArgs': self.templateArgs, 'schedArgs' : self.schedArgs})
         
 obj = riaps2uppaal('/home/riaps/riaps_projects/DistributedEstimator/Python/','DistributedEstimator')
 obj.parse_model('sample.riaps')
 obj.parse_depl('variation1.depl')
-#obj.generate_cfg()
+obj.generate_cfg()
 # for comp, item in obj.cfg.items():
 #     print(item.code_metadata)
-#obj.merge_xta()
+obj.merge_xta()
 # g = obj.print_cfg()
 # for item in g:
 #     print(item)
