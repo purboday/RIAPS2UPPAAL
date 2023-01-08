@@ -1,13 +1,19 @@
 // Place template instantiations here.
 {% set ns=namespace(processes='') %}
+{% set ns=namespace(iter=0) %}
 {% for actorName, actorObj in actorMap.items() %}
 {% if loop.first %}
-{% set ns.processes ='' %}
+{% set ns.iter =1 %}
 {% endif %}
 {% for compVal in actorObj.comps %}
 {% for host in actorObj.target %}
 {{host}}_{{actorName}}_{{compVal.inst}} = {{compVal.type}}({% for templateKey, argString in templateArgs.items() if templateKey == host~'_'~actorName~'_'~compVal.inst %}{{argString}}{% endfor %});
+{% if ns.iter == 1 %}
+{% set ns.processes = host~'_'~actorName~'_'~compVal.inst %}
+{% set ns.iter = 0 %}
+{% else %}
 {% set ns.processes = ns.processes ~ ',' ~ host~'_'~actorName~'_'~compVal.inst %}
+{% endif %}
 {% for compName, portData in compInfo.items() if compName == compVal.type %}
 {% for portName, portAttr in portData.ports.items() %}
 {% if portAttr.type == 'sub' %}

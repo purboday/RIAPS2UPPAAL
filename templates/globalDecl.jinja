@@ -102,11 +102,11 @@ int {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}}_identity;
 {% if portAttr.type == 'tim' %}
 chan {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}}_terminate;
 chan {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}}_activate;
-chan {{host}}_{{actorName}}_{{compVal.inst}}_start;
-chan {{host}}_{{actorName}}_{{compVal.inst}}_cancel;
-chan {{host}}_{{actorName}}_{{compVal.inst}}_deactivate;
-chan {{host}}_{{actorName}}_{{compVal.inst}}_setDelay;
-int {{host}}_{{actorName}}_{{compVal.inst}}_delay;
+chan {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}}_start;
+chan {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}}_cancel;
+chan {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}}_deactivate;
+chan {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}}_setDelay;
+int {{host}}_{{actorName}}_{{compVal.inst}}_{{portName}}_delay;
 {% endif %}
 {% endfor %}
 {% endfor %}

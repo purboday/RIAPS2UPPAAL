@@ -286,8 +286,8 @@ class riaps2uppaal():
             
     def merge_xta(self):
         
-        print(str(self.actorMap))
-        print(str(self.modelData))
+        # print(str(self.actorMap))
+        # print(str(self.modelData))
         self.add_xta("globalDecl.jinja", {'actorMap' : self.actorMap,'compInfo' : self.modelData, 'maxSize': 10, 'portCount' : self.calc_port_count()})
         for actor, actuals in self.actorMap.items():
             for compAttr in actuals['comps']:
@@ -316,12 +316,10 @@ class riaps2uppaal():
                             
                         # set arguments for template instances based on deployment and message scope defined
                         
-                        if portAttr["type"] != "tim":
-                            if portAttr["msgscope"] == "local":
-                                self.templateArgs[templateKey] += "%s_%s_activate, %s_%s_deactivate, %s_%s_start, %s_%s_cancel, %s_%s_terminate, %s_%s_setDelay, %s_%s_q, " %(templateKey,portName,templateKey,portName,templateKey,portName,templateKey,portName,templateKey,portName,templateKey,portName,templateKey,portName)
-                            else:
-                                self.templateArgs[templateKey] += "%s_%s_activate, %s_%s_deactivate, %s_%s_start, %s_%s_cancel, %s_%s_terminate, %s_%s_setDelay, %s_%s_q, " %(templateKey,portName,templateKey,portName,templateKey,portName,templateKey,portName,templateKey,portName,templateKey,portName,templateKey,portName)
-                            self.schedArgs["%sScheduler" % (templateKey)] += "%s_%s," %(templateKey,portName)
+                        if portAttr["type"] == "tim":
+                            
+                            self.templateArgs[templateKey] += "%s_%s_activate, %s_%s_deactivate, %s_%s_start, %s_%s_cancel, %s_%s_terminate, %s_%s_setDelay, %s_%s_q," %(templateKey,portName,templateKey,portName,templateKey,portName,templateKey,portName,templateKey,portName,templateKey,portName,templateKey,portName)
+                            self.schedArgs["%sScheduler" % (templateKey)] += "%s_%s_q," %(templateKey,portName)
                         else:
                             if portAttr["type"] in ["pub","sub","qry","req"]:
                                 if portAttr["msgscope"] == "local":
@@ -340,7 +338,11 @@ class riaps2uppaal():
                                         self.templateArgs[templateKey] += "%s_%s_identity,%s_%s_q, %s_channel," %(templateKey,portName,templateKey,portName, portAttr['msgtype'][1])
                                     else:
                                         self.templateArgs[templateKey] += "%s_%s_q, %s_channel," %(templateKey,portName,portAttr['msgtype'][1])
-                            self.schedArgs["%sScheduler" % (templateKey)] += "%s_%s," %(templateKey,portName)
+                            self.schedArgs["%sScheduler" % (templateKey)] += "%s_%s_q," %(templateKey,portName)
+                
+                    self.templateArgs[templateKey] =  self.templateArgs[templateKey][:-1]
+                    self.schedArgs["%sScheduler" % (templateKey)] = self.schedArgs["%sScheduler" % (templateKey)][:-1]           
+        
                             
         for compName, ports in self.modelData.items():
             if compName in self.cfg:
